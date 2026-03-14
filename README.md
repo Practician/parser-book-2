@@ -1,4 +1,4 @@
-# 4PDA Book Parser — Android App
+# Parser Book 2 — Android App
 
 WebView приложение для парсинга книг с форума 4PDA и публикации серий.
 
@@ -50,7 +50,7 @@ AndroidBridge.getPlatform();               // → "android"
 
 ```bash
 # 1. Открыть в Android Studio
-File → Open → выбрать папку 4pda-book-app
+File → Open → выбрать папку parser-book-2
 
 # 2. Синхронизировать Gradle
 File → Sync Project with Gradle Files
@@ -65,7 +65,7 @@ Build → Build Bundle(s)/APK(s) → Build APK(s)
 ### Или через командную строку
 
 ```bash
-cd 4pda-book-app
+cd parser-book-2
 ./gradlew assembleDebug
 # APK: app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -75,7 +75,7 @@ cd 4pda-book-app
 ## Структура проекта
 
 ```
-4pda-book-app/
+parser-book-2/
 ├── app/
 │   ├── src/main/
 │   │   ├── java/com/bookparser/app/
