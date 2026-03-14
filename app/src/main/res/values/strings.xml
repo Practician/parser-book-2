@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Парсер книг 2</string>
+    <string name="app_name">Parser Book 2</string>
     <string-array name="genres_array">
         <item>Фантастика</item>
         <item>Альтернативная история</item>
