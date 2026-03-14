@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>4PDA Book Parser</title>
+    <script src="jszip.min.js"></script>
+    <script src="pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        .header {
+            background: #1877f2;
+            color: white;
+            padding: 14px 16px;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .header span {
+            font-size: 13px;
+            font-weight: 400;
+            opacity: .8;
+            display: block;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccd0d5;
+            border-radius: 10px;
+            padding: 28px 16px;
+            text-align: center;
+            background: #fff;
+            cursor: pointer;
+            margin: 12px;
+        }
+
+        .upload-area:active,
+        .upload-area.drag {
+            background: #eef1f5;
+            border-color: #1877f2;
+        }
+
+        .upload-area p {
+            font-size: 14px;
+            color: #606770;
+            margin-top: 6px;
+        }
+
+        .upload-icon {
+            font-size: 40px;
+        }
+
+        input[type=file] {
+            display: none;
+        }
+
+        .status {
+            margin: 0 12px 8px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.ok {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.err {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.inf {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .bridge-status {
+            position: fixed;
+            top: 2px;
+            right: 8px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .bridge-ok {
+            background: #28a745;
+            color: white;
+        }
+
+        .bridge-fail {
+            background: #dc3545;
+            color: white;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            margin: 0 12px 12px;
+            padding: 14px;
+        }
+
+        .card h3 {
+            font-size: 14px;
+            color: #606770;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #f0f2f5;
+            padding: 7px 0;
+        }
+
+        .info-row:last-child {
+            border: none;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #606770;
+            width: 80px;
+            flex-shrink: 0;
+        }
+
+        .info-value {
+            font-size: 13px;
+            color: #1c1e21;
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 2px 6px;
+            flex-shrink: 0;
+        }
+
+        .cover-preview {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .cover-preview img {
+            max-width: 120px;
+            max-height: 180px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+        }
+
+        .no-cover {
+            width: 100px;
+            height: 140px;
+            background: #f0f2f5;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 12px;
+        }
+
+
+        .book-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: #f7f8fa;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .book-item:hover {
+            background: #edf0f3;
+        }
+
+        .book-item.active {
+            background: #e7f3ff;
+            border: 1px solid #007bff;
+            box-shadow: 0 2px 6px rgba(0, 123, 255, 0.15);
+        }
+
+        .book-num {
+            font-size: 12px;
+            color: #1877f2;
+            font-weight: 700;
+            width: 20px;
+            flex-shrink: 0;
+        }
+
+        .book-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .book-title {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .book-author {
+            font-size: 11px;
+            color: #606770;
+        }
+
+        .btn-sm {
+            background: none;
+            border: 1px solid #ccd0d5;
+            border-radius: 4px;
+            padding: 3px 7px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .btn-sm:active {
+            background: #eee;
+        }
+
+        .btn-sm.del {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .annotation-box {
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 12px;
+            color: #444;
+            line-height: 1.5;
+            background: #f7f8fa;
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .bb-box {
+            width: 100%;
+            min-height: 100px;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 10px;
+            border: 1px solid #ccd0d5;
+            border-radius: 6px;
+            resize: vertical;
+            background: #f9f9f9;
+        }
+
+        button.btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        button.btn-primary {
+            background: #1877f2;
+            color: #fff;
+        }
+
+        button.btn-success {
+            background: #28a745;
+            color: #fff;
+        }
+
+        button.btn-danger {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        button.btn:active {
+            opacity: .85;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 12px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #606770;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab.active {
+            color: #1877f2;
+            border-color: #1877f2;
+        }
+
+        .section {
+            display: block;
+            margin-bottom: 20px;
+        }
+
+
+
+        .progress {
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 4px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #1877f2;
+            width: 0;
+            transition: width .3s;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #1877f2;
+            color: #fff;
+            border-radius: 10px;
+            font-size: 11px;
+            padding: 1px 7px;
+            margin-left: 4px;
+        }
+
+        /* Search Results Styles */
+        .search-results-section {
+            display: none;
+            margin: 12px;
+        }
+
+        .search-results-section.show {
+            display: block;
+        }
+
+        .search-result-card {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #1877f2;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-result-info {
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        .search-result-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1c1e21;
+            margin-bottom: 2px;
+        }
+
+        .search-result-score {
+            font-size: 11px;
+            color: #65676b;
+        }
+
+        .search-result-btn {
+            background: #e7f3ff;
+            color: #1877f2;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .search-result-btn:active {
+            background: #dbeaff;
+        }
+    </style>
+
+    <script>
+        window.onerror = function (msg, url, line, col, error) {
+            const errStr = `❌ Глобальная ошибка: ${msg} (строка ${line}:${col})`;
+            if (typeof actionLog === 'function') {
+                actionLog(errStr, 'err');
+            } else {
+                alert(errStr);
+            }
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function (event) {
+            actionLog('❌ Ошибка Promise: ' + event.reason, 'err');
+        });
+    </script>
+
+</head>
+
+<body>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+        function testBridge() {
+            if (window.AndroidBridge && AndroidBridge.saveFile) {
+                const testData = "Test Bridge Working! Time: " + new Date().toISOString();
+                const base64 = btoa(unescape(encodeURIComponent(testData)));
+                AndroidBridge.saveFile(base64, "test_test.txt", "text/plain");
+                actionLog("testBridge: command sent");
+            } else {
+                alert("Ошибка: AndroidBridge не доступен!");
+            }
+        }
+    </script>
+
+    <div class="header">
+        📚 4PDA Book Parser
+        <span>Парсер книжных серий для форума</span>
+    </div>
+    <div id="bridgeStatus" class="bridge-status bridge-fail">Bridge: Fail</div>
+
+    <!-- STATUS -->
+    <div id="status" class="status"></div>
+
+    <!-- ═══ TAB: UPLOAD ═══ -->
+    <div id="section-upload" class="section active">
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <p><strong>Нажмите или перетащите файлы</strong></p>
+            <p>FB2 · FB2.ZIP · EPUB · PDF</p>
+            <input type="file" id="fileInput" accept=".fb2,.zip,.epub,.pdf" multiple>
+        </div>
+
+        <!-- Current book info -->
+        <div id="infoCard" class="card" style="display:none">
+            <h3>Последняя книга</h3>
+            <div class="cover-preview" id="coverPreview">
+                <div class="no-cover">Нет обложки</div>
+            </div>
+            <div style="text-align:center;margin-bottom:12px">
+                <button id="btnDownloadCover" class="btn-sm" style="display:none" onclick="downloadCover()">🖼 Скачать
+                    обложку</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Автор</span>
+                <span class="info-value" id="iAuthor">—</span>
+                <button class="copy-btn" onclick="copy('author')" title="Копировать">📋</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Название</span>
+                <span class="info-value" id="iTitle">—</span>
+                <button class="copy-btn" onclick="copy('title')" title="Копировать">📋</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Серия</span>
+                <span class="info-value" id="iSeries">—</span>
+                <button class="copy-btn" onclick="copy('series')" title="Копировать">📋</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">№ в серии</span>
+                <span class="info-value" id="iNum">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Жанр</span>
+                <span class="info-value" id="iGenre">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Язык</span>
+                <span class="info-value" id="iLang">—</span>
+            </div>
+        </div>
+
+        <!-- Annotation -->
+        <div id="annotCard" class="card" style="display:none">
+            <h3>Аннотация</h3>
+            <div class="annotation-box" id="iAnnotation"></div>
+        </div>
+
+        <!-- Integrated Search Results (v30) -->
+        <div id="searchResultsSection" class="search-results-section">
+            <h3 style="font-size: 14px; color: #606770; font-weight: 600; margin: 0 0 10px; text-transform: uppercase;">
+                Похожие темы на форуме</h3>
+            <div id="searchResultsContainer"></div>
+        </div>
+
+        <div style="margin:0 12px 16px">
+            <button class="btn btn-danger" onclick="resetAll()">🗑 Очистить всё</button>
+        </div>
+
+    </div>
+
+    <!-- ═══ TAB: BOOKS ═══ -->
+    <div id="section-books" class="section">
+
+        <div class="card">
+            <h3>Книги серии <span id="bookCountLabel"></span></h3>
+            <div id="bookList"></div>
+        </div>
+
+        <!-- Series summary -->
+        <div id="seriesCard" class="card" style="display:none">
+            <h3>Серия</h3>
+            <div class="info-row">
+                <span class="info-label">Автор</span>
+                <span class="info-value" id="sAuthor">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Серия</span>
+                <span class="info-value" id="sSeries">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Книг</span>
+                <span class="info-value" id="sCount">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Жанр</span>
+                <span class="info-value" id="sGenre">—</span>
+            </div>
+        </div>
+
+        <div style="margin:0 12px 16px">
+            <button class="btn btn-success" onclick="downloadZip()">📦 Скачать все FB2.ZIP</button>
+            <button class="btn btn-sm" onclick="testBridge()">🧪 Тест скачивания (Debug)</button>
+        </div>
+
+    </div>
+
+    <!-- ═══ TAB: BB-CODE ═══ -->
+    <div id="section-bbcode" class="section">
+
+        <div class="card">
+            <h3>BB-код для 4PDA</h3>
+            <textarea id="bbArea" class="bb-box" placeholder="Загрузите книги на вкладке «Загрузка»…"></textarea>
+        </div>
+
+        <div style="margin:0 12px 16px; display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="btn btn-primary" style="flex: 1; min-width: 140px;" onclick="copyBB()">📋
+                Скопировать</button>
+            <button class="btn btn-success" style="flex: 1; min-width: 140px;" onclick="sendToForum()">🚀
+                Опубликовать</button>
+            <button class="btn btn-info"
+                style="flex: 1; min-width: 140px; background-color: #17a2b8; color: white; border: none;"
+                onclick="searchOnForum()">🔍 Поиск на форуме</button>
+        </div>
+
+
+        <div class="card" id="logCard">
+            <h3 style="display:flex;justify-content:space-between">Журнал
+                <button class="btn-sm" onclick="document.getElementById('actionLog').innerHTML=''"
+                    style="font-size:9px">Очистить</button>
+            </h3>
+            <div id="actionLog"
+                style="font-size:11px;max-height:150px;overflow-y:auto;background:#f9f9f9;padding:8px;border-radius:4px;font-family:monospace">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ════════════════════════════════════════════════
+        //  STATE
+        // ════════════════════════════════════════════════
+        const GENRE_MAP = {
+            "sf_history": "Альтернативная история",
+            "sf_action": "Боевая фантастика",
+            "sf_epic": "Фантастика",
+            "sf_heroic": "Фантастика",
+            "sf_detective": "Детективная Фантастика",
+            "sf_cyberpunk": "Киберпанк",
+            "sf_stimpank": "Киберпанк",
+            "sf_space": "Космическая фантастика",
+            "sf_social": "Социально-психологическая фантастика",
+            "sf_horror": "Мистика и ужасы",
+            "sf_humor": "Юмористическая фантастика",
+            "sf_fantasy": "Фэнтези",
+            "sf": "Научная фантастика",
+            "sf_realrpg": "ЛитРПГ",
+            "sf_litrpg": "ЛитРПГ",
+            "sf_postapocalyptic": "Постапокалипсис",
+            "dark_fantasy": "Фэнтези",
+            "fantasy_action": "Фэнтези",
+            "hronoopera": "Хроноопера",
+            "sf_all": "Фантастика",
+            "sf_mystic": "Мистика и ужасы",
+            "network_literature": "Научная фантастика",
+            "det_classic": "Детектив",
+            "det_police": "Детектив",
+            "det_action": "Боевик",
+            "det_irony": "Детектив",
+            "det_history": "История",
+            "det_espionage": "Триллеры",
+            "det_crime": "Криминал",
+            "det_political": "Политика",
+            "det_maniac": "Триллеры",
+            "det_hard": "Детектив",
+            "thriller": "Триллеры",
+            "detective": "Детектив",
+            "det_all": "Детектив",
+            "popadanec": "Попаданцы",
+            "popadancy": "Попаданцы",
+            "back_to_ussr": "История",
+            "back-to-ussr": "История",
+            "prose_classic": "Романы и повести",
+            "prose_history": "История",
+            "prose_contemporary": "Романы и повести",
+            "prose_counter": "Контркультура",
+            "prose_rus_classic": "Романы и повести",
+            "prose_su_classics": "Романы и повести",
+            "great_story": "Романы и повести",
+            "roman": "Романы и повести",
+            "love_contemporary": "Романы и повести",
+            "love_history": "Романы и повести",
+            "love_detective": "Детектив",
+            "love_short": "Романы и повести",
+            "love_erotica": "Романы и повести",
+            "adv_western": "Приключения",
+            "adv_history": "Приключения",
+            "adv_indian": "Приключения",
+            "adv_maritime": "Приключения",
+            "adv_geo": "Путешествия и география",
+            "adv_animal": "Природа и животные",
+            "adventure": "Приключения",
+            "adv_all": "Приключения",
+            "child_tale": "Сказки, мифы и легенды",
+            "child_verse": "Детская литература",
+            "child_prose": "Детская литература",
+            "child_sf": "Детская литература",
+            "child_det": "Детская литература",
+            "child_adv": "Детская литература",
+            "child_education": "Детская литература",
+            "children": "Детская литература",
+            "Child_all": "Детская литература",
+            "poetry": "Поэзия",
+            "dramaturgy": "Драматургия и комедия",
+            "poetry_all": "Поэзия",
+            "antique_ant": "История",
+            "antique_european": "История",
+            "antique_russian": "История",
+            "antique_east": "История",
+            "antique_myths": "Сказки, мифы и легенды",
+            "antique": "История",
+            "history_all": "История",
+            "sci_history": "История",
+            "sci_psychology": "Психология",
+            "sci_culture": "Культурология",
+            "sci_religion": "Религия и эзотерика",
+            "sci_philosophy": "Философия",
+            "sci_politics": "Политика",
+            "sci_business": "Бизнес литература",
+            "sci_juris": "Юриспруденция",
+            "sci_linguistic": "Языки и словари",
+            "sci_medicine": "Медицина и здоровье",
+            "sci_phys": "Технические науки",
+            "sci_math": "Технические науки",
+            "sci_chem": "Технические науки",
+            "sci_biology": "Наука и образование",
+            "sci_tech": "Технические науки",
+            "science": "Наука и образование",
+            "psycho_all": "Психология",
+            "banking_all": "Бизнес литература",
+            "Sci_all": "Наука и образование",
+            "foreign_language": "Языки и словари",
+            "comp_www": "Компьютерная литература",
+            "comp_programming": "Компьютерная литература",
+            "comp_hard": "Компьютерная литература",
+            "comp_soft": "Компьютерная литература",
+            "comp_db": "Компьютерная литература",
+            "comp_osnet": "Компьютерная литература",
+            "computers": "Компьютерная литература",
+            "comp_all": "Компьютерная литература",
+            "ref_encyc": "Справочная литература",
+            "ref_dict": "Языки и словари",
+            "ref_ref": "Справочная литература",
+            "ref_guide": "Справочная литература",
+            "reference": "Справочная литература",
+            "ref_all": "Справочная литература",
+            "nonf_biography": "Мемуары и биографии",
+            "nonf_publicism": "Публицистика",
+            "nonf_criticism": "Критика",
+            "design": "Хобби и досуг",
+            "nonfiction": "Документальная литература",
+            "nonf_all": "Документальная литература",
+            "military_memoirs": "Мемуары и биографии",
+            "religion_rel": "Религия и эзотерика",
+            "religion_esoterics": "Религия и эзотерика",
+            "religion_self": "Психология",
+            "religion": "Религия и эзотерика",
+            "rel_all": "Религия и эзотерика",
+            "humor_anecdote": "Юмор",
+            "humor_prose": "Юмор",
+            "humor_verse": "Юмор",
+            "humor": "Юмор",
+            "humor_all": "Юмор",
+            "home_cooking": "Кулинария",
+            "home_pets": "Домашние животные",
+            "home_crafts": "Хобби и досуг",
+            "home_entertain": "Хобби и досуг",
+            "home_health": "Медицина и здоровье",
+            "home_garden": "Сад и огород",
+            "home_diy": "Сделай сам",
+            "home_sport": "Спорт",
+            "home_sex": "Романы и повести",
+            "home": "Хобби и досуг",
+            "home_all": "Дом и семья",
+            "hobbies_all": "Хобби и досуг",
+            "periodic": "Журналы и комиксы",
+            "military": "О войне",
+            "nonf_military": "О войне",
+            "military_history": "О войне",
+            "poetry_military": "О войне"
+        };
+
+        let books = [];
+        let currentBook = null;
+        const MAX_DEPTH = 10;
+
+        function mapGenre(raw) {
+            if (!raw) return 'Не указано';
+            actionLog("mapGenre input raw: " + raw);
+            const parts = raw.split(/[\s,;]+/).filter(Boolean);
+            const res = parts.map(p => {
+                let s = p.trim().toLowerCase().replace(/-/g, '_');
+
+                // 1. Direct match
+                if (GENRE_MAP[s]) return GENRE_MAP[s];
+
+                // 2. Smart 'etc' handling
+                if (s.endsWith('_etc')) {
+                    const base = s.replace('_etc', '');
+                    if (GENRE_MAP[base]) return GENRE_MAP[base] + ' (прочее)';
+                }
+
+                // 3. Aggressive prefix stripping
+                const stripped = s.replace(/^(sf|fantasy|prose|det|love|adv|child|sci|nonf|humor|comp|ref|religion)_?/, '');
+                if (GENRE_MAP[stripped]) return GENRE_MAP[stripped];
+
+                // 4. underscore fallback
+                if (s.includes('_')) {
+                    const lastPart = s.split('_').pop();
+                    if (GENRE_MAP[lastPart]) return GENRE_MAP[lastPart];
+                }
+
+                // 5. Final fallback - keep original (lowercase) for better debugging
+                return p;
+            });
+            const result = [...new Set(res)].join(', ');
+            actionLog("mapGenre output: " + result);
+            return result;
+        }
+
+        // ════════════════════════════════════════════════
+        //  INIT
+        // ════════════════════════════════════════════════
+        document.addEventListener('DOMContentLoaded', () => {
+            const area = document.getElementById('uploadArea');
+            const input = document.getElementById('fileInput');
+
+            area.addEventListener('click', () => input.click());
+            area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('drag'); });
+            area.addEventListener('dragleave', () => area.classList.remove('drag'));
+            area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+            input.addEventListener('change', e => handleFiles(e.target.files));
+
+            // Bridge check
+            setTimeout(() => {
+                const bs = document.getElementById('bridgeStatus');
+                if (window.AndroidBridge) {
+                    bs.innerText = 'Bridge: OK';
+                    bs.className = 'bridge-status bridge-ok';
+                    actionLog("Bridge detected successfully");
+                } else {
+                    bs.innerText = 'Bridge: Fail';
+                    bs.className = 'bridge-status bridge-fail';
+                    actionLog("Bridge NOT detected");
+                }
+            }, 500);
+        });
+
+        // ════════════════════════════════════════════════
+        //  TABS
+        // ════════════════════════════════════════════════
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            document.getElementById('section-' + name).classList.add('active');
+            if (name === 'bbcode') regenerateBB();
+            if (name === 'books') renderBookList();
+        }
+
+        // ════════════════════════════════════════════════
+        //  FILE HANDLING
+        // ════════════════════════════════════════════════
+        async function handleFiles(files) {
+            if (!files || !files.length) return;
+            status('⏳ Обработка ' + files.length + ' файл(ов)…', 'inf');
+            let ok = 0, fail = 0;
+            for (const f of Array.from(files)) {
+                try {
+                    actionLog("Processing file:", f.name);
+                    await processFile(f);
+                    actionLog("File processed successfully:", f.name);
+                    ok++;
+                } catch (e) {
+                    fail++;
+                    actionLog('Error:', f.name, e);
+                }
+            }
+            updateUI();
+            if (fail === 0) status('✅ Добавлено книг: ' + ok, 'ok');
+            else status(`✅ Добавлено: ${ok}, ❌ ошибок: ${fail}`, ok > 0 ? 'ok' : 'err');
+        }
+
+        async function processFile(file) {
+            const lo = file.name.toLowerCase();
+            if (lo.endsWith('.fb2')) {
+                await parseFB2File(file);
+                addBook();
+            } else if (lo.endsWith('.epub')) {
+                const zip = await JSZip.loadAsync(file);
+                await parseEPUB(zip);
+                addBook();
+            } else if (lo.endsWith('.zip')) {
+                const zip = await JSZip.loadAsync(file);
+                const found = await parseFB2Zip(zip, 0);
+                if (!found) throw new Error('Книги не найдены в архиве');
+            } else if (lo.endsWith('.pdf')) {
+                await parsePDF(file);
+                addBook();
+            } else {
+                throw new Error('Неподдерживаемый формат: ' + file.name);
+            }
+        }
+
+        // ════════════════════════════════════════════════
+        //  PARSERS
+        // ════════════════════════════════════════════════
+        function resetBook() {
+            currentBook = {
+                author: '', title: '', series: '', seriesNum: '', annotation: '',
+                genre: '', genreCode: '', lang: '', year: '',
+                cover: { data: null, mime: 'image/jpeg' },
+                originalFB2: '', encoding: 'utf-8', filename: '', bodyText: ''
+            };
+        }
+
+        function addBook() {
+            if (!currentBook || (!currentBook.title && !currentBook.author)) return;
+            currentBook.filename = makeFilename(currentBook);
+            books.push({ ...currentBook });
+            // Auto-search (v23)
+            if (books.length === 1 && currentBook.title) {
+                setTimeout(() => searchOnForum(), 800);
+            }
+        }
+
+        // — FB2 from File object
+        async function parseFB2File(file) {
+            resetBook();
+            const buf = await file.arrayBuffer();
+            const u8 = new Uint8Array(buf);
+            const head = new TextDecoder('ascii').decode(u8.slice(0, 300));
+            const enc = /encoding=["'](windows-1251|cp1251)/i.test(head) ? 'windows-1251' : 'utf-8';
+            const text = new TextDecoder(enc, { fatal: false }).decode(u8);
+            await parseFB2Text(text);
+            currentBook.originalFB2 = text;
+            currentBook.encoding = enc;
+            currentBook.filename = file.name;
+        }
+
+        // — FB2 from text (inside ZIP)
+        async function parseFB2Text(text) {
+            actionLog("parseFB2Text: start");
+            if (!currentBook) resetBook();
+            const doc = new DOMParser().parseFromString(text, 'text/xml');
+            const ti = doc.querySelector('title-info');
+            if (!ti) {
+                actionLog("parseFB2Text: title-info not found");
+                return;
+            }
+
+            // Authors
+            const authors = Array.from(ti.querySelectorAll('author'));
+            currentBook.author = authors.map(a => {
+                const fn = a.querySelector('first-name')?.textContent.trim() || '';
+                const ln = a.querySelector('last-name')?.textContent.trim() || '';
+                return (ln + (fn ? ' ' + fn : '')).trim();
+            }).filter(Boolean).join(', ') || 'Неизвестный автор';
+
+            currentBook.title = ti.querySelector('book-title')?.textContent.trim() || '';
+            actionLog("parseFB2Text: title =", currentBook.title);
+
+            const seq = ti.querySelector('sequence');
+            if (seq) {
+                currentBook.series = seq.getAttribute('name') || '';
+                currentBook.seriesNum = seq.getAttribute('number') || '';
+            }
+
+            const annot = ti.querySelector('annotation');
+            if (annot) {
+                currentBook.annotation = Array.from(annot.querySelectorAll('p'))
+                    .map(p => p.textContent.trim()).join('\n\n');
+            }
+
+            // Improved Genre Handling
+            const genreTags = Array.from(ti.querySelectorAll('genre'));
+            const genreCodes = genreTags.map(g => g.textContent.trim()).filter(Boolean).join(', ');
+            actionLog("parseFB2Text: genre codes string =", genreCodes);
+            if (genreCodes) {
+                currentBook.genreCode = genreCodes;
+                currentBook.genre = mapGenre(genreCodes);
+                actionLog("parseFB2Text: final mapped genres =", currentBook.genre);
+            }
+
+            currentBook.lang = ti.querySelector('lang')?.textContent.trim() || 'ru';
+
+            // Year (from publish-info or document-info or date)
+            const yr = doc.querySelector('publish-info year')?.textContent.trim() ||
+                doc.querySelector('document-info date')?.textContent.trim() ||
+                doc.querySelector('date')?.textContent.trim() || '';
+            const yrMatch = yr.match(/\d{4}/);
+            currentBook.year = yrMatch ? yrMatch[0] : '';
+            actionLog("parseFB2Text: year =", currentBook.year);
+
+            // Improved Cover Extraction
+            const cp = ti.querySelector('coverpage image');
+            let foundBin = null;
+            let coverMime = 'image/jpeg';
+
+            if (cp) {
+                const href = cp.getAttribute('l:href') || cp.getAttribute('xlink:href') || cp.getAttribute('href') || '';
+                actionLog("parseFB2Text: cover href =", href);
+                const id = href.replace('#', '');
+
+                // 1. Direct search by ID
+                foundBin = doc.getElementById(id) ||
+                    doc.querySelector(`binary[id="${id}"]`) ||
+                    doc.querySelector(`binary[*|id="${id}"]`);
+
+                if (foundBin) {
+                    actionLog("parseFB2Text: binary found by ID =", id);
+                    coverMime = foundBin.getAttribute('content-type') || 'image/jpeg';
+                }
+            }
+
+            // 2. Fallback: Search for any binary that might be a cover if not found yet
+            if (!foundBin) {
+                actionLog("parseFB2Text: cover not found by ID, trying fallback search...");
+                const allBins = Array.from(doc.querySelectorAll('binary'));
+                // Take first binary as fallback if it looks like an image
+                for (let b of allBins) {
+                    const ct = b.getAttribute('content-type') || '';
+                    if (ct.includes('image') || b.textContent.length > 1000) {
+                        foundBin = b;
+                        coverMime = ct || 'image/jpeg';
+                        actionLog("parseFB2Text: using fallback binary, len =", b.textContent.length);
+                        break;
+                    }
+                }
+            }
+
+            if (foundBin) {
+                const rawB64 = foundBin.textContent.replace(/\s/g, ''); // Clean base64
+                currentBook.cover = {
+                    data: await optimizeCover(rawB64, coverMime),
+                    mime: coverMime
+                };
+                actionLog("parseFB2Text: cover processed, final size =", currentBook.cover.data?.length);
+            } else {
+                actionLog("parseFB2Text: no cover found");
+            }
+        }
+
+        // — FB2 inside ZIP (recursive)
+        async function parseFB2Zip(zip, depth) {
+            if (depth > MAX_DEPTH) return false;
+            let found = false;
+            for (const [name, entry] of Object.entries(zip.files)) {
+                if (entry.dir) continue;
+                const lo = name.toLowerCase();
+                if (lo.endsWith('.fb2')) {
+                    resetBook();
+                    const raw = await entry.async('arraybuffer');
+                    const u8 = new Uint8Array(raw);
+                    const hd = new TextDecoder('ascii').decode(u8.slice(0, 300));
+                    const enc = /encoding=["'](windows-1251|cp1251)/i.test(hd) ? 'windows-1251' : 'utf-8';
+                    const txt = new TextDecoder(enc, { fatal: false }).decode(u8);
+                    await parseFB2Text(txt);
+                    currentBook.originalFB2 = txt;
+                    currentBook.encoding = enc;
+                    currentBook.filename = name;
+                    addBook();
+                    found = true;
+                } else if (lo.endsWith('.zip')) {
+                    const nested = await JSZip.loadAsync(await entry.async('arraybuffer'));
+                    if (await parseFB2Zip(nested, depth + 1)) found = true;
+                }
+            }
+            return found;
+        }
+
+        // — EPUB
+        async function parseEPUB(zip) {
+            resetBook();
+            const containerXML = await zip.file('META-INF/container.xml').async('text');
+            const containerDoc = new DOMParser().parseFromString(containerXML, 'text/xml');
+            const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
+            if (!opfPath) throw new Error('OPF not found');
+
+            const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
+            const opfText = await zip.file(opfPath).async('text');
+            const opfDoc = new DOMParser().parseFromString(opfText, 'text/xml');
+            const meta = opfDoc.querySelector('metadata');
+
+            currentBook.title = meta?.querySelector('title')?.textContent.trim() || 'Без названия';
+            currentBook.author = meta?.querySelector('creator')?.textContent.trim() || 'Неизвестный автор';
+            currentBook.lang = meta?.querySelector('language')?.textContent.trim() || 'ru';
+
+            const d = meta?.querySelector('date')?.textContent.trim() || '';
+            const yrMatch = d.match(/\d{4}/);
+            currentBook.year = yrMatch ? yrMatch[0] : '';
+
+            const desc = meta?.querySelector('description');
+            if (desc) currentBook.annotation = desc.textContent.trim();
+
+            const sm = opfDoc.querySelector('meta[name="calibre:series"]');
+            if (sm) currentBook.series = sm.getAttribute('content') || '';
+            const si = opfDoc.querySelector('meta[name="calibre:series_index"]');
+            if (si) currentBook.seriesNum = si.getAttribute('content') || '';
+
+            // Cover
+            const coverItem = opfDoc.querySelector('item[properties*="cover-image"]') ||
+                opfDoc.querySelector('item[id="cover"]') ||
+                opfDoc.querySelector('item[media-type^="image"]');
+            if (coverItem) {
+                const path = opfDir + coverItem.getAttribute('href');
+                const f = zip.file(path);
+                if (f) {
+                    const b64 = await f.async('base64');
+                    const mime = coverItem.getAttribute('media-type') || 'image/jpeg';
+                    currentBook.cover = { data: await optimizeCover(b64, mime), mime };
+                }
+            }
+
+            currentBook.epubZip = zip;
+            currentBook.epubOpfDir = opfDir;
+
+            // Text extraction (v22)
+            try {
+                const spine = Array.from(opfDoc.querySelectorAll('spine > itemref'));
+                const manifest = Array.from(opfDoc.querySelectorAll('manifest > item'));
+                let allText = '';
+                for (const ref of spine) {
+                    const id = ref.getAttribute('idref');
+                    const item = manifest.find(i => i.getAttribute('id') === id);
+                    if (item) {
+                        const href = item.getAttribute('href');
+                        const f = zip.file(opfDir + href);
+                        if (f) {
+                            const html = await f.async('text');
+                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                            allText += (doc.body?.innerText || doc.body?.textContent || '') + '\n\n';
+                        }
+                    }
+                }
+                currentBook.bodyText = allText;
+            } catch (e) { actionLog('EPUB text error: ' + e, 'err'); }
+        }
+
+        // — PDF
+        async function parsePDF(file) {
+            resetBook();
+            const buf = await file.arrayBuffer();
+            currentBook.originalBuffer = buf;
+            // Use clone for pdf.js to prevent detaching originalBuffer
+            const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+            const info = (await pdf.getMetadata().catch(() => ({ info: {} }))).info || {};
+            currentBook.title = info.Title?.trim() || file.name.replace(/\.pdf$/i, '');
+            currentBook.author = info.Author?.trim() || 'Неизвестный автор';
+            currentBook.lang = 'ru';
+
+            // Render p.1 as cover
+            try {
+                const page = await pdf.getPage(1);
+                const vp = page.getViewport({ scale: 1.5 });
+                const cv = document.createElement('canvas');
+                cv.width = vp.width;
+                cv.height = vp.height;
+                await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+                const b64 = cv.toDataURL('image/jpeg', 0.8).split(',')[1];
+                currentBook.cover = { data: await optimizeCover(b64, 'image/jpeg'), mime: 'image/jpeg' };
+            } catch (e) { actionLog('PDF cover error', e); }
+
+            // Text extraction (v22)
+            try {
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(item => item.str).join(' ') + '\n\n';
+                    if (i % 20 === 0) status(`⏳ Текст PDF: ${i}/${pdf.numPages}`, 'inf');
+                }
+                currentBook.bodyText = fullText;
+            } catch (e) { actionLog('PDF text error: ' + e, 'err'); }
+        }
+
+        // ════════════════════════════════════════════════
+        //  IMAGE OPTIMIZATION
+        // ════════════════════════════════════════════════
+        function optimizeCover(b64, mime) {
+            return new Promise(resolve => {
+                if (!b64) { resolve(null); return; }
+                const cleanB64 = b64.replace(/\s/g, ''); // Ensure no whitespaces
+                const img = new Image();
+                img.onload = () => {
+                    const MAX = 500;
+                    if (Math.max(img.width, img.height) <= MAX) { resolve(cleanB64); return; }
+                    const sc = MAX / Math.max(img.width, img.height);
+                    const cv = document.createElement('canvas');
+                    cv.width = Math.round(img.width * sc);
+                    cv.height = Math.round(img.height * sc);
+                    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+                    resolve(cv.toDataURL(mime || 'image/jpeg', 0.92).split(',')[1]);
+                };
+                img.onerror = () => resolve(cleanB64);
+                img.src = `data:${mime};base64,${cleanB64}`;
+            });
+        }
+
+        // ════════════════════════════════════════════════
+        //  UI UPDATES
+        // ════════════════════════════════════════════════
+
+        function downloadCover() {
+            if (!currentBook || !currentBook.cover || !currentBook.cover.data) {
+                status('❌ Обложка не найдена', 'err');
+                return;
+            }
+            const b = currentBook;
+            const name = transliterate(`${b.author} - ${b.title}`).replace(/\s+/g, '_') + '.jpg';
+
+            if (window.AndroidBridge && AndroidBridge.saveFile) {
+                try {
+                    AndroidBridge.saveFile(b.cover.data, name, 'image/jpeg');
+                    status('✅ Обложка сохранена: ' + name, 'ok');
+                } catch (e) {
+                    actionLog('Error saving cover: ' + e, 'err');
+                }
+            } else {
+                // Fallback for browser testing
+                const link = document.createElement('a');
+                link.href = `data:${b.cover.mime || 'image/jpeg'};base64,${b.cover.data}`;
+                link.download = name;
+                link.click();
+                status('✅ Скачивание начато', 'ok');
+            }
+        }
+
+        function selectBook(i) {
+            if (i < 0 || i >= books.length) return;
+            currentBook = books[i];
+            updateUI();
+            // Highlight in list
+            document.querySelectorAll('.book-item').forEach((el, idx) => {
+                if (idx === i) el.classList.add('active');
+                else el.classList.remove('active');
+            });
+        }
+
+        function updateUI() {
+            updateBadge();
+            updateInfoPanel();
+            renderBookList();
+            regenerateBB();
+            updateSeriesCard();
+
+            // Re-apply active class to list item if currentBook is in books
+            const idx = books.findIndex(b => b === currentBook);
+            if (idx !== -1) {
+                const items = document.querySelectorAll('.book-item');
+                if (items[idx]) items[idx].classList.add('active');
+            }
+        }
+
+        function updateBadge() {
+            const b = document.getElementById('bookBadge'); if (b) b.textContent = books.length;
+        }
+
+        function updateInfoPanel() {
+            if (!currentBook || !currentBook.title) return;
+            document.getElementById('infoCard').style.display = 'block';
+            document.getElementById('btnDownloadCover').style.display = (currentBook.cover && currentBook.cover.data) ? 'inline-block' : 'none';
+            document.getElementById('iAuthor').textContent = currentBook.author || '—';
+            document.getElementById('iTitle').textContent = currentBook.title || '—';
+            document.getElementById('iSeries').textContent = currentBook.series || '—';
+            document.getElementById('iNum').textContent = currentBook.seriesNum || '—';
+            document.getElementById('iGenre').textContent = currentBook.genre || '—';
+            document.getElementById('iLang').textContent = currentBook.lang || '—';
+            // Add year to info panel if we had a field for it, but for now just update other metadata
+
+            const cp = document.getElementById('coverPreview');
+            if (currentBook.cover && currentBook.cover.data) {
+                cp.innerHTML = `<img src="data:${currentBook.cover.mime};base64,${currentBook.cover.data}" alt="Обложка">`;
+            } else {
+                cp.innerHTML = '<div class="no-cover">Нет обложки</div>';
+            }
+
+            if (currentBook.annotation) {
+                document.getElementById('annotCard').style.display = 'block';
+                document.getElementById('iAnnotation').textContent = currentBook.annotation;
+            } else {
+                document.getElementById('annotCard').style.display = 'none';
+            }
+        }
+
+        function renderBookList() {
+            const el = document.getElementById('bookList');
+            document.getElementById('bookCountLabel').textContent = books.length ? `(${books.length})` : '';
+            if (!books.length) {
+                el.innerHTML = '<p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Загрузите книги</p>';
+                return;
+            }
+            el.innerHTML = books.map((b, i) => `
+        <div class="book-item ${b === currentBook ? 'active' : ''}" onclick="selectBook(${i})">
+            <span class="book-num">${i + 1}</span>
+            <div class="book-text">
+                <div class="book-title">${esc(b.title)}</div>
+                <div class="book-author">${esc(b.author)}${b.seriesNum ? ' · №' + b.seriesNum : ''}</div>
+            </div>
+            <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
+                <button class="btn-sm" onclick="moveUp(${i})" ${i === 0 ? 'disabled' : ''}>↑</button>
+                <button class="btn-sm" onclick="moveDn(${i})" ${i === books.length - 1 ? 'disabled' : ''}>↓</button>
+                <button class="btn-sm del" onclick="removeBook(${i})">✕</button>
+            </div>
+        </div>`).join('');
+        }
+
+        function updateSeriesCard() {
+            if (!books.length) { document.getElementById('seriesCard').style.display = 'none'; return; }
+            document.getElementById('seriesCard').style.display = 'block';
+            const b = books[0];
+            document.getElementById('sAuthor').textContent = b.author || '—';
+            document.getElementById('sSeries').textContent = b.series || '—';
+            document.getElementById('sCount').textContent = books.length;
+            const genres = [...new Set(books.map(x => x.genre).filter(Boolean))].join(', ');
+            document.getElementById('sGenre').textContent = genres || '—';
+        }
+
+        // ════════════════════════════════════════════════
+        //  BOOK MANAGEMENT
+        // ════════════════════════════════════════════════
+        function moveUp(i) { if (i > 0) { [books[i - 1], books[i]] = [books[i], books[i - 1]]; renderBookList(); updateSeriesCard(); regenerateBB(); } }
+        function moveDn(i) { if (i < books.length - 1) { [books[i], books[i + 1]] = [books[i + 1], books[i]]; renderBookList(); updateSeriesCard(); regenerateBB(); } }
+        function removeBook(i) { books.splice(i, 1); updateUI(); regenerateBB(); }
+        function resetAll() { books = []; currentBook = null; updateUI(); document.getElementById('bbArea').value = ''; document.getElementById('infoCard').style.display = 'none'; document.getElementById('annotCard').style.display = 'none'; document.getElementById('seriesCard').style.display = 'none'; document.getElementById('fileInput').value = ''; status('Данные очищены', 'inf'); }
+
+        // ════════════════════════════════════════════════
+        //  BB-CODE
+        // ════════════════════════════════════════════════
+        function regenerateBB() {
+            if (!books.length) { document.getElementById('bbArea').value = ''; return; }
+
+            // 1. Group books by Author + Series
+            const groups = [];
+            books.forEach(b => {
+                const key = (b.author || 'Unknown') + '|' + (b.series || '');
+                let group = groups.find(g => g.key === key);
+                if (!group) {
+                    group = { key, author: b.author, series: b.series, items: [] };
+                    groups.push(group);
+                }
+                group.items.push(b);
+            });
+
+            let finalBB = '';
+
+            groups.forEach(g => {
+                // Author (Red)
+                finalBB += `[COLOR=red][B]${g.author || 'Неизвестный автор'}[/B][/COLOR]\n`;
+
+                // Series Heading (Blue)
+                let seriesLine = '';
+                if (g.series) {
+                    const nums = g.items.map(b => parseInt(b.seriesNum)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+                    const range = nums.length > 1 ? ` ${nums[0]}-${nums[nums.length - 1]}` : (nums.length === 1 ? ` ${nums[0]}` : '');
+                    seriesLine = `${g.series}${range}`;
+                } else {
+                    seriesLine = g.items[0].title || 'Без названия';
+                }
+                finalBB += `[B][COLOR=blue]${seriesLine}[/COLOR][/B]\n`;
+
+                // Spoiler start
+                finalBB += `[SPOILER=Аннотация]`;
+
+                g.items.forEach((b, idx) => {
+                    if (g.items.length > 1) {
+                        let itemTitle = b.title || 'Без названия';
+                        if (b.series) {
+                            itemTitle = `${b.series}${b.seriesNum ? '-' + b.seriesNum : ''}. ${b.title}`;
+                        } else {
+                            itemTitle = b.title || 'Без названия';
+                        }
+                        finalBB += `[b]${idx + 1}. ${itemTitle}[/b]\n`;
+                    }
+                    finalBB += `${b.annotation || 'Добавить аннотацию'}${g.items.length > 1 ? '\n' : ''}\n`;
+                });
+
+                finalBB += `[/SPOILER]\n`;
+                finalBB += `[url="ссылка на Книгохранилище"][i][b]Скачать из Книгохранилища[/b][/i][/url]\n\n`;
+            });
+
+            document.getElementById('bbArea').value = finalBB.trim();
+        }
+
+        function copyBB() {
+            const bb = document.getElementById('bbArea').value;
+            if (!bb) { status('❌ BB-код пуст', 'err'); return; }
+            // Try AndroidBridge first, fallback to clipboard API
+            if (window.AndroidBridge) {
+                AndroidBridge.copyToClipboard(bb);
+            } else {
+                navigator.clipboard?.writeText(bb).then(() => status('✅ Скопировано!', 'ok'));
+            }
+            status('✅ BB-код скопирован!', 'ok');
+        }
+
+        function sendToForum() {
+            const bb = document.getElementById('bbArea').value;
+            if (!bb) { status('❌ Сначала загрузите книги', 'err'); return; }
+
+            // Build topic title and structured data
+            let topicTitle = '';
+            let bookData = {
+                bbcode: bb,
+                topicTitle: '',
+                author: '',
+                title: '',
+                series: '',
+                genre: '',
+                annotation: ''
+            };
+
+            if (books.length > 0) {
+                const b0 = books[0];
+                const author = b0.author || 'Неизвестный автор';
+                bookData.author = author;
+                bookData.title = b0.title || 'Без названия';
+                const allGenres = books.map(x => x.genre).join(',').split(',').map(s => s.trim()).filter(Boolean);
+                bookData.genres = [...new Set(allGenres)];
+                bookData.genre = bookData.genres.join(', ');
+                bookData.year = b0.year || '';
+
+                // Merge annotations from all books
+                bookData.annotation = books
+                    .map(b => b.annotation)
+                    .filter(a => a && a.trim())
+                    .join('\n\n');
+
+                if (b0.cover && b0.cover.data) {
+                    bookData.coverImageBase64 = b0.cover.data;
+                }
+
+                if (b0.series) {
+                    const nums = books.map(b => parseInt(b.seriesNum)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+                    const range = nums.length > 1 ? ` ${nums[0]}-${nums[nums.length - 1]}` : (nums.length === 1 ? ` ${nums[0]}` : '');
+                    topicTitle = `${author} - ${b0.series}${range}`;
+                    bookData.series = `${b0.series}${range}`;
+                } else {
+                    topicTitle = `${author} - ${b0.title || 'Без названия'}`;
+                }
+
+                if (books.length > 1) {
+                    topicTitle += ` [${books.length} книги]`;
+                }
+
+                bookData.topicTitle = topicTitle;
+            }
+
+            if (window.AndroidBridge && AndroidBridge.sendBookDataToForum) {
+                AndroidBridge.sendBookDataToForum(JSON.stringify(bookData));
+            } else if (window.AndroidBridge && AndroidBridge.sendBBCodeToForumWithTitle) {
+                AndroidBridge.sendBBCodeToForumWithTitle(bb, topicTitle);
+            } else if (window.AndroidBridge && AndroidBridge.sendBBCodeToForum) {
+                AndroidBridge.sendBBCodeToForum(bb);
+            } else {
+                navigator.clipboard?.writeText(bb).then(() => {
+                    window.open('https://4pda.to/forum/index.php?showforum=18', '_blank');
+                });
+            }
+        }
+
+        function searchOnForum(q) {
+            let query = q;
+            if (!query && currentBook) {
+                const author = currentBook.author || '';
+                const surname = author.split(/[\s,]+/)[0] || '';
+                let titleActual = currentBook.title || '';
+
+                // Strip series indicators and EVERYTHING after them (ultra aggressive)
+                titleActual = titleActual.replace(/(Часть|Ч\.|Книга|Кн\.|Том|Т\.|Кн|Ч|Т)\s*\d+.*$/gi, '');
+
+                // Strip digits and trailing junk
+                titleActual = titleActual.replace(/\d+/g, '');
+                titleActual = titleActual.replace(/[:.,\-—\s]+$/, '').trim();
+
+                query = (surname + ' ' + titleActual).trim();
+            } else if (query) {
+                // If query was passed (e.g. from q), still apply cleaning to be safe
+                query = query.replace(/(Часть|Ч\.|Книга|Кн\.|Том|Т\.|Кн|Ч|Т)\s*\d+.*$/gi, '');
+                query = query.replace(/\d+/g, '');
+                query = query.replace(/[:.,\-—\s]+$/, '').trim();
+            }
+
+            if (!query) { status('❌ Введите название для поиска', 'err'); return; }
+
+            actionLog("searchOnForum: query=" + query);
+            if (window.AndroidBridge && AndroidBridge.searchOnForum) {
+                AndroidBridge.searchOnForum(query);
+            } else {
+                window.open('https://4pda.to/forum/index.php?act=search&source=all&result=topics&no_top=1&subforums=1&forums%5B%5D=18&query=' + encodeURIComponent(query), '_blank');
+            }
+        }
+
+        // ════════════════════════════════════════════════
+        //  DOWNLOAD ZIP
+        // ════════════════════════════════════════════════
+        async function downloadSingleBook(idx) {
+            const b = books[idx];
+            if (!b) return;
+            status('⏳ Подготовка ' + (b.title || 'книги') + '...', 'inf');
+            try {
+                const zip = new JSZip();
+                let fb2Content = (b.originalFB2 || generateFB2(b));
+                const baseName = transliterate(makeFilename(b));
+                zip.file(baseName + '.fb2', fb2Content);
+                const base64 = await zip.generateAsync({ type: "base64", compression: "DEFLATE" });
+                const finalName = baseName + '.fb2.zip';
+
+                if (window.AndroidBridge && AndroidBridge.saveFile) {
+                    AndroidBridge.saveFile(base64, finalName, 'application/zip');
+                    status('✅ ' + finalName + ' отправлен', 'ok');
+                } else {
+                    const link = document.createElement('a');
+                    link.href = 'data:application/zip;base64,' + base64;
+                    link.download = finalName;
+                    link.click();
+                    status('✅ Скачано: ' + finalName, 'ok');
+                }
+            } catch (e) {
+                actionLog('Download error for ' + b.title + ': ' + e, 'err');
+                status('❌ Ошибка скачивания', 'err');
+            }
+        }
+
+        async function downloadZip() {
+            if (!books.length) { status('❌ Нет книг', 'err'); return; }
+            status('🚀 Запускаю массовую загрузку...', 'inf');
+            for (let i = 0; i < books.length; i++) {
+                await downloadSingleBook(i);
+                await new Promise(r => setTimeout(r, 600)); // Delay to prevent bridge overlapping
+            }
+            status('✅ Завершена загрузка ' + books.length + ' книг', 'ok');
+        }
+
+        // ════════════════════════════════════════════════
+        //  FB2 GENERATION
+        // ════════════════════════════════════════════════
+        function generateFB2(d, bodyText) {
+            const x = t => (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const authors = (d.author || '').split(',').map(n => n.trim()).filter(Boolean);
+            const authorXML = authors.map(n => {
+                const p = n.split(' ');
+                return p.length >= 2
+                    ? `<author><first-name>${x(p.slice(1).join(' '))}</first-name><last-name>${x(p[0])}</last-name></author>`
+                    : `<author><last-name>${x(n)}</last-name></author>`;
+            }).join('\n') || '<author><last-name>Неизвестный автор</last-name></author>';
+
+            const genreXML = d.genreCode ? `<genre>${x(d.genreCode)}</genre>` : '';
+            const seqXML = d.series ? `<sequence name="${x(d.series)}"${d.seriesNum ? ` number="${x(d.seriesNum)}"` : ''}/>` : '';
+            const annotXML = d.annotation ? `<annotation><p>${x(d.annotation)}</p></annotation>` : '';
+            let coverXML = '', binaryXML = '';
+            if (d.cover?.data) {
+                coverXML = `<coverpage><image l:href="#cover.jpg"/></coverpage>\n`;
+                binaryXML = `\n<binary id="cover.jpg" content-type="${d.cover.mime || 'image/jpeg'}">${d.cover.data}</binary>`;
+            }
+            const bodyTextActual = bodyText || d.bodyText || '';
+            const body = bodyTextActual ? bodyTextActual.split(/\n\s*\n/).filter(p => p.trim()).map(p => `<p>${x(p.trim())}</p>`).join('\n') : '<p></p>';
+            return `<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description><title-info>
+${genreXML}
+${authorXML}
+<book-title>${x(d.title || 'Без названия')}</book-title>
+${annotXML}${seqXML}${coverXML}<lang>${x(d.lang || 'ru')}</lang>
+</title-info></description>
+<body><section>${body}</section></body>${binaryXML}
+</FictionBook>`;
+        }
+
+        // ════════════════════════════════════════════════
+        function makeFilename(b) {
+            const p = [];
+            if (b.author) {
+                const parts = b.author.split(/[\s,]+/);
+                if (parts.length > 0) p.push(parts[0]);
+            }
+            if (b.title) p.push(b.title);
+            if (b.series) p.push(b.series);
+            return (p.join('_') || 'book').substring(0, 150);
+        }
+
+        function transliterate(t) {
+            const map = {
+                'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo', 'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U', 'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch', 'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+            };
+            return t.split('').map(c => map[c] !== undefined ? map[c] : c).join('')
+                .replace(/[^\w.\-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+        }
+
+        function copy(field) {
+            if (!currentBook) return;
+            const v = currentBook[field] || '';
+            if (window.AndroidBridge) AndroidBridge.copyToClipboard(v);
+            else navigator.clipboard?.writeText(v);
+            status(`✅ ${field} скопировано`, 'ok');
+        }
+
+        function esc(t) {
+            const d = document.createElement('div'); d.textContent = t; return d.innerHTML;
+        }
+
+
+        function actionLog(msg, type = 'inf') {
+            // Internal log call removed to prevent recursion
+            const el = document.getElementById('actionLog');
+            if (el) {
+                const time = new Date().toLocaleTimeString();
+                const div = document.createElement('div');
+                div.style.color = type === 'err' ? '#dc3545' : (type === 'ok' ? '#28a745' : '#1c1e21');
+                div.innerHTML = `<span style="color:#aaa">${time}</span> ${msg}`;
+                el.insertBefore(div, el.firstChild);
+            }
+        }
+
+        // ════════════════════════════════════════════════
+        //  INTEGRATED KX-SEARCH LOGIC (v35)
+        // ════════════════════════════════════════════════
+        function norm(s) {
+            return (s || '')
+                .toLowerCase()
+                .replace(/ё/g, 'е')
+                .replace(/[‐–—―-]/g, '-')
+                .replace(/[^a-zа-я0-9\- _]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function tokenize(s) {
+            return norm(s).split(' ').filter(t => t.length >= 2);
+        }
+
+        function buildAuthorTokens(authorStr) {
+            const set = new Set();
+            const authors = (authorStr || '').split(/[\s,]+/).filter(Boolean);
+            authors.forEach(n => {
+                const nn = norm(n);
+                if (nn.length >= 2) {
+                    set.add(nn);
+                    // Add initials variant if two parts
+                    const parts = nn.split(' ');
+                    if (parts.length >= 2) {
+                        const ini = parts[0][0] + parts[1][0];
+                        set.add(ini);
+                    }
+                }
+            });
+            return Array.from(set);
+        }
+
+        function scoreTopic(topicTitle, authorTokens, titleTokens, seriesTokens) {
+            const t = ` ${norm(topicTitle)} `;
+            let score = 0;
+
+            // Title Match (Weight 3)
+            for (const tok of titleTokens) {
+                if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) score += 3;
+                else if (t.includes(tok)) score += 1;
+            }
+
+            // Series Match (Weight 3)
+            let seriesHit = false;
+            for (const tok of seriesTokens) {
+                if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) { score += 3; seriesHit = true; }
+                else if (t.includes(tok)) { score += 1; seriesHit = true; }
+            }
+
+            // Author Match (Weight 2)
+            for (const tok of authorTokens) {
+                if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) score += 2;
+                else if (t.includes(tok)) score += 1;
+            }
+
+            // Cross-match bonus
+            if (authorTokens.length > 0 && (titleTokens.length > 0 || seriesTokens.length > 0)) score += 2;
+            if (seriesHit) score += 2;
+
+            return score;
+        }
+
+        // This will be called from Android
+        window.onSearchFinished = function (resultsJson) {
+            try {
+                const rawResults = typeof resultsJson === 'string' ? JSON.parse(resultsJson) : resultsJson;
+                if (!rawResults || !rawResults.length) {
+                    status('🔍 Темы не найдены', 'inf');
+                    renderSearchResults([]);
+                    return;
+                }
+
+                if (!currentBook) return;
+
+                const authorTokens = buildAuthorTokens(currentBook.author);
+                const titleTokens = tokenize(currentBook.title);
+                const seriesTokens = currentBook.series ? tokenize(currentBook.series) : [];
+
+                const scored = rawResults.map(r => ({
+                    ...r,
+                    score: scoreTopic(r.title, authorTokens, titleTokens, seriesTokens)
+                }))
+                    .filter(r => r.score > 0)
+                    .sort((a, b) => b.score - a.score);
+
+                renderSearchResults(scored);
+                status('✅ Найдено тем: ' + scored.length, 'ok');
+            } catch (e) {
+                actionLog('Search finish error: ' + e, 'err');
+            }
+        };
+
+        function renderSearchResults(results) {
+            const container = document.getElementById('searchResultsContainer');
+            const section = document.getElementById('searchResultsSection');
+            container.innerHTML = '';
+
+            if (results.length > 0) {
+                section.classList.add('show');
+                results.slice(0, 5).forEach(r => {
+                    const card = document.createElement('div');
+                    card.className = 'search-result-card';
+                    card.innerHTML = `
+                        <div class="search-result-info">
+                            <div class="search-result-title">${esc(r.title)}</div>
+                            <div class="search-result-score">Совпадение: ${r.score}</div>
+                        </div>
+                        <a href="javascript:void(0)" onclick="openForumTopic('${esc(r.url)}')" class="search-result-btn">Открыть</a>
+                    `;
+                    container.appendChild(card);
+                });
+            } else {
+                section.classList.remove('show');
+            }
+        }
+
+        // Open forum topic via bridge or fallback
+        function openForumTopic(url) {
+            if (window.AndroidBridge && AndroidBridge.openForumUrl) {
+                AndroidBridge.openForumUrl(url);
+            } else {
+                window.open(url, '_blank');
+            }
+        }
+
+        function status(msg, type) {
+            actionLog(msg, type);
+            const el = document.getElementById('status');
+            el.textContent = msg;
+            el.className = `status show ${type || 'inf'}`;
+            clearTimeout(el._t);
+            el._t = setTimeout(() => el.classList.remove('show'), 3500);
+        }
+    </script>
+</body>
+
+</html>

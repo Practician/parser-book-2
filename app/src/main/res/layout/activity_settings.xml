@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:title="Настройки"
+            app:titleTextColor="@color/white" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Section: App Settings -->
+            <TextView
+                style="@style/HeaderTextStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Настройки приложения"
+                android:textSize="20sp" />
+
+            <!-- Publication Section -->
+            <TextView
+                style="@style/HeaderTextStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="Публикация" />
+
+            <CheckBox
+                android:id="@+id/checkbox_auto_publish"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:buttonTint="@color/accent_purple"
+                android:text="Автоматическая публикация"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                style="@style/SubHeaderTextStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="32dp"
+                android:text="При включении этой опции пост будет автоматически опубликован без ручного подтверждения." />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="16dp"
+                android:background="@color/text_hint" />
+
+            <!-- Author Biography Source -->
+            <TextView
+                style="@style/HeaderTextStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Источник биографии автора" />
+
+            <RadioGroup
+                android:id="@+id/radio_group_bio_source"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <RadioButton
+                    android:id="@+id/radio_wikipedia"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:buttonTint="@color/text_secondary"
+                    android:text="Wikipedia (по умолчанию)"
+                    android:textColor="@color/text_primary" />
+
+                <TextView
+                    style="@style/SubHeaderTextStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="32dp"
+                    android:layout_marginBottom="12dp"
+                    android:text="Получение биографии из русской и английской Wikipedia через REST API. Быстро и стабильно." />
+
+                <RadioButton
+                    android:id="@+id/radio_ruwiki"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:buttonTint="@color/text_secondary"
+                    android:text="РУВИКИ"
+                    android:textColor="@color/text_primary" />
+
+                <TextView
+                    style="@style/SubHeaderTextStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="32dp"
+                    android:layout_marginBottom="12dp"
+                    android:text="Получение биографии из энциклопедии РУВИКИ (российский аналог Wikipedia). Работает через REST API статей." />
+
+                <RadioButton
+                    android:id="@+id/radio_ruwiki_ai"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:buttonTint="@color/accent_orange"
+                    android:drawableStart="@android:drawable/stat_sys_warning"
+                    android:drawablePadding="8dp"
+                    android:text="РУВИКИ ИИ (экспериментально)"
+                    android:textColor="@color/text_primary" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="32dp"
+                    android:text="Генерация биографии через нейросеть РУВИКИ. Более подробные тексты, но функция находится в разработке. Может работать нестабильно."
+                    android:textColor="@color/accent_orange"
+                    android:textSize="12sp" />
+            </RadioGroup>
+
+            <!-- Information Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:background="@color/background_card"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:drawableStart="@android:drawable/ic_dialog_info"
+                    android:drawablePadding="8dp"
+                    android:drawableTint="@color/button_blue"
+                    android:text="Информация"
+                    android:textColor="@color/text_primary"
+                    android:textStyle="bold" />
+
+                <TextView
+                    style="@style/SubHeaderTextStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="• Wikipedia — рекомендуется для большинства случаев (стабильнее)\n• РУВИКИ — российская энциклопедия через REST API\n• РУВИКИ ИИ — экспериментальная функция (в разработке)\n• Для работы требуется подключение к интернету" />
+            </LinearLayout>
+
+            <!-- Save Button -->
+            <Button
+                android:id="@+id/button_save_settings"
+                style="@style/Widget.App.Button.Green"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:paddingVertical="12dp"
+                android:text="Сохранить настройки" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

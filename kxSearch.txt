@@ -1,0 +1,257 @@
+// src/search/kxSearch.ts
+import { chromium, BrowserContext, Page } from 'playwright';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { load as loadHtmlToCheerio } from 'cheerio';
+import { logger } from '../utils/logger.js';
+
+export type KxTopic = {
+  id: number;
+  urlFull: string;   // https://4pda.to/forum/index.php?showtopic=NNN
+  titleRaw: string;
+};
+
+export type MatchParams = {
+  authors: { firstName?: string; lastName?: string; middleName?: string }[];
+  title: string;
+  seriesName?: string;
+  seriesIndex?: number;
+};
+
+const BASE = 'https://4pda.to/forum/lofiversion/index.php';
+const CACHE_DIR = 'cache';
+const CACHE_FILE = path.join(CACHE_DIR, 'kh-index.json');
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 часа
+const FORUM_ID = 218;
+
+function lofiPageUrl(offset = 0): string {
+  return offset === 0 ? `${BASE}?f${FORUM_ID}.html` : `${BASE}?f${FORUM_ID}-${offset}.html`;
+}
+
+function transformToFullUrl(id: number): string {
+  return `https://4pda.to/forum/index.php?showtopic=${id}`;
+}
+
+function norm(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[‐–—―-]/g, '-')
+    .replace(/[^a-zа-я0-9\- _]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenize(s: string): string[] {
+  return norm(s).split(' ').filter((t) => t.length >= 2);
+}
+
+function buildAuthorTokens(authors: MatchParams['authors']): string[] {
+  const set = new Set<string>();
+  for (const a of authors || []) {
+    const nfn = norm(a.firstName || '');
+    const nln = norm(a.lastName || '');
+    const nmn = norm(a.middleName || '');
+
+    if (nln) set.add(nln);
+    if (nfn) set.add(nfn);
+    if (nmn) set.add(nmn);
+
+    const ini = (nfn ? nfn[0] : '') + (nmn ? nmn[0] : '');
+    if (ini) set.add(ini);
+    if (ini) set.add(`${ini[0]}.`);
+    if (ini.length === 2) set.add(`${ini[0]}.${ini[1]}.`);
+    if (nln && nfn) set.add(`${nln} ${nfn[0]}.`);
+    if (nln && ini.length === 2) set.add(`${nln} ${ini[0]}.${ini[1]}.`);
+    if (nln && nfn) set.add(`${nln}-${nfn[0]}.`);
+  }
+  return Array.from(set);
+}
+
+function passesFilter(topicTitle: string, authorTokens: string[], nameTokens: string[]): boolean {
+  const t = ` ${norm(topicTitle)} `;
+  const hasAuthor = authorTokens.some((tok) =>
+    t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `) || t.includes(tok)
+  );
+  const hasName = nameTokens.some((tok) =>
+    t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `) || t.includes(tok)
+  );
+  return hasAuthor && hasName;
+}
+
+function scoreTopic(
+  topicTitle: string,
+  authorTokens: string[],
+  titleTokens: string[],
+  seriesTokens: string[],
+  hasSeriesIndex: boolean
+): number {
+  const t = ` ${norm(topicTitle)} `;
+  let score = 0;
+
+  for (const tok of titleTokens) {
+    if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) score += 3;
+    else if (t.includes(tok)) score += 1;
+  }
+  let seriesHit = false;
+  for (const tok of seriesTokens) {
+    if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) { score += 3; seriesHit = true; }
+    else if (t.includes(tok)) { score += 1; seriesHit = true; }
+  }
+  for (const tok of authorTokens) {
+    if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) score += 2;
+    else if (t.includes(tok)) score += 1;
+  }
+  if (authorTokens.length > 0 && (titleTokens.length > 0 || seriesTokens.length > 0)) score += 2;
+  if (seriesHit && hasSeriesIndex) score += 2;
+  return score;
+}
+
+function parseTopicsFromHtml(html: string): KxTopic[] {
+  const out: KxTopic[] = [];
+  const $ = loadHtmlToCheerio(html);
+
+  $('div.topicwrap li > a[href*="t"][href$=".html"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const m = href.match(/t(\d+)\.html/i);
+    if (!m) return;
+    const id = parseInt(m[1], 10);
+    if (!Number.isFinite(id)) return;
+
+    const title = $(el).text().replace(/\s+/g, ' ').trim();
+    out.push({
+      id,
+      urlFull: transformToFullUrl(id),
+      titleRaw: title,
+    });
+  });
+
+  return out;
+}
+
+function parseMaxOffset(html: string): number {
+  const $ = loadHtmlToCheerio(html);
+  let max = 0;
+  $('div.ipbpagespan a[href*="f' + FORUM_ID + '-"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const m = href.match(new RegExp(`f${FORUM_ID}-(\\d+)\\.html`, 'i'));
+    if (m) {
+      const off = parseInt(m[1], 10);
+      if (Number.isFinite(off) && off > max) max = off;
+    }
+  });
+  return max;
+}
+
+async function createAuthedContext(): Promise<BrowserContext> {
+  const browser = await chromium.launch({ headless: true });
+  const ctx = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  });
+  try {
+    const rawCookies = JSON.parse(await fs.readFile('cookies.json', 'utf-8'));
+    const valid = ['Strict', 'Lax', 'None'];
+    const cookies = rawCookies.map((c: any) =>
+      c.sameSite && !valid.includes(c.sameSite) ? { ...c, sameSite: 'Lax' } : c
+    );
+    await ctx.addCookies(cookies);
+    return ctx;
+  } catch (e) {
+    await ctx.close();
+    throw e;
+  }
+}
+
+async function loadHtml(ctx: BrowserContext, offset: number): Promise<{ html: string; page: Page }> {
+  const page = await ctx.newPage();
+  const url = lofiPageUrl(offset);
+  logger.info(`[kxSearch] загрузка: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+
+  try {
+    await page.waitForSelector('div.topicwrap, div.ipbpagespan', { timeout: 5000 });
+  } catch {
+    await fs.mkdir(CACHE_DIR, { recursive: true });
+    const failHtml = await page.content();
+    await fs.writeFile(path.join(CACHE_DIR, `kx-fail-${offset}.html`), failHtml, 'utf-8');
+    try {
+      await page.screenshot({ path: path.join(CACHE_DIR, `kx-fail-${offset}.png`), fullPage: true });
+    } catch {}
+    logger.warn(`[kxSearch] на странице offset=${offset} не найдено блоков topicwrap/ipbpagespan`);
+  }
+
+  const html = await page.content();
+  return { html, page };
+}
+
+async function rebuildIndex(): Promise<KxTopic[]> {
+  const ctx = await createAuthedContext();
+  try {
+    const { html: html0, page: p0 } = await loadHtml(ctx, 0);
+    const topics0 = parseTopicsFromHtml(html0);
+    const maxOffset = parseMaxOffset(html0);
+    await p0.close();
+
+    const out: KxTopic[] = [...topics0];
+
+    if (maxOffset > 0) {
+      for (let off = 200; off <= maxOffset; off += 200) {
+        const { html, page } = await loadHtml(ctx, off);
+        const topics = parseTopicsFromHtml(html);
+        await page.close();
+
+        if (topics.length === 0) {
+          logger.warn(`[kxSearch] offset=${off}: тем не найдено (возможна защита/разметка изменилась)`);
+        }
+        out.push(...topics);
+      }
+    }
+
+    await fs.mkdir(CACHE_DIR, { recursive: true });
+    await fs.writeFile(CACHE_FILE, JSON.stringify(out, null, 2), 'utf-8');
+    logger.info(`[kxSearch] индекс обновлён: ${out.length} тем`);
+    return out;
+  } finally {
+    await ctx.close();
+  }
+}
+
+async function loadIndex(): Promise<KxTopic[] | null> {
+  try {
+    const st = await fs.stat(CACHE_FILE);
+    if (Date.now() - st.mtimeMs > CACHE_TTL_MS) return null;
+    const data = await fs.readFile(CACHE_FILE, 'utf-8');
+    const parsed: KxTopic[] = JSON.parse(data);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function getIndex(): Promise<KxTopic[]> {
+  const cached = await loadIndex();
+  if (cached) return cached;
+  return await rebuildIndex();
+}
+
+export async function findCandidates(params: MatchParams): Promise<KxTopic[]> {
+  const index = await getIndex();
+
+  const authorTokens = buildAuthorTokens(params.authors);
+  const titleTokens = tokenize(params.title);
+  const seriesTokens = params.seriesName ? tokenize(params.seriesName) : [];
+  const hasSeriesIndex = typeof params.seriesIndex === 'number';
+
+  const rough = index.filter((t) => passesFilter(t.titleRaw, authorTokens, [...titleTokens, ...seriesTokens]));
+
+  const scored = rough
+    .map((t) => ({
+      topic: t,
+      score: scoreTopic(t.titleRaw, authorTokens, titleTokens, seriesTokens, hasSeriesIndex),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.topic);
+
+  return scored;
+}

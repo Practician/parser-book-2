@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <!-- Основной WebView — parser.html -->
+    <WebView
+        android:id="@+id/webViewParser"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible" />
+
+    <!-- Скрытый WebView — форум -->
+    <WebView
+        android:id="@+id/webViewForum"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Кнопка открытия логов (поверх всего, правый нижний угол) -->
+    <ImageButton
+        android:id="@+id/btnShowLog"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:background="#CC000000"
+        android:contentDescription="Логи"
+        android:padding="8dp"
+        android:src="@android:drawable/ic_menu_info_details"
+        android:tint="#FFFFFF" />
+
+    <!-- Панель логов (overlay, по умолчанию скрыта) -->
+    <LinearLayout
+        android:id="@+id/logPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#EE111111"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- Заголовок -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="#222222"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Логи приложения"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnCopyLog"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Копировать"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:background="#1565C0"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
+
+            <Button
+                android:id="@+id/btnClearLog"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:text="Очистить"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:background="#333333"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
+
+            <Button
+                android:id="@+id/btnCloseLog"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:text="✕"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:background="#333333"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
+        </LinearLayout>
+
+        <!-- Прокручиваемый текст логов -->
+        <ScrollView
+            android:id="@+id/logScrollView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <TextView
+                android:id="@+id/logTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:padding="8dp"
+                android:textColor="#CCFFFFFF"
+                android:textSize="10sp" />
+        </ScrollView>
+    </LinearLayout>
+
+</FrameLayout>

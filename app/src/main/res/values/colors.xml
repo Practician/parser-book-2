@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Dark Theme Background (Deep Blue Tint / Midnight) -->
+    <!-- #101118 is a dark, almost black blue. #161722 is proper tinted surface -->
+    <color name="background_dark">#101118</color> 
+    <color name="background_surface">#161722</color> 
+    <color name="background_card">#1F202B</color>
+    <color name="background_elevated">#2A2B36</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B5B6BE</color> <!-- Slightly cool grey -->
+    <color name="text_hint">#70717A</color>
+    
+    <!-- Accent Colors (Vibrant/Electric) -->
+    <color name="purple_primary">#6200EE</color> <!-- Vibrant Electric Purple -->
+    <color name="purple_dark">#3700B3</color>
+    <color name="purple_neon">#7C4DFF</color>
+    
+    <color name="red_primary">#F44336</color>
+    <color name="red_dark">#D32F2F</color>
+    
+    <color name="green_primary">#00E676</color> 
+    <color name="green_dark">#00C853</color>
+    
+    <color name="blue_primary">#2979FF</color>
+    <color name="blue_dark">#2962FF</color>
+    
+    <!-- Toolbar -->
+    <color name="toolbar_background">#161722</color> <!-- Matches Surface for blending -->
+    
+    <!-- Divider -->
+    <color name="divider">#2A2B36</color>
+    
+    <!-- Compatibility aliases -->
+    <color name="button_purple">@color/purple_primary</color>
+    <color name="button_red">@color/red_primary</color>
+    <color name="button_green">@color/green_primary</color>
+    <color name="button_blue">@color/blue_primary</color>
+    <color name="bbcode_purple">@color/purple_primary</color>
+    <color name="accent_purple">@color/purple_primary</color>
+    <color name="accent_orange">#FFAB40</color>
+    
+    <!-- Legacy (for compatibility) -->
+    <color name="purple_200">#BB86FC</color>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="teal_700">#018786</color>
+</resources>

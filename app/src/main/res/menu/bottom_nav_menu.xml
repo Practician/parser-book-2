@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_forum"
+        android:icon="@drawable/ic_forum"
+        android:title="Поиск" />
+
+    <item
+        android:id="@+id/nav_parser"
+        android:icon="@drawable/ic_book"
+        android:title="Парсер" />
+
+    <item
+        android:id="@+id/nav_publish"
+        android:icon="@drawable/ic_publish"
+        android:title="Публикация" />
+
+</menu>

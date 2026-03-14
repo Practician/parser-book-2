@@ -1,0 +1,648 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Статус -->
+        <TextView
+            android:id="@+id/textViewStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Загрузка..."
+            android:textAlignment="center"
+            android:textColor="#FF5722"
+            android:textSize="14sp"
+            android:visibility="gone"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- 1. Файлы книги -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Файлы книги"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="(0, макс. 192 МБ)"
+                android:textSize="12sp"
+                android:textColor="#666"/>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Допустимы форматы fb2/epub/pdf или архивы с книгами (файлы же doc, docx, djvu, rtf, txt упаковать в zip или rar архив)."
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <TextView
+            android:id="@+id/textViewSelectedBook"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Файл не выбран"
+            android:textSize="14sp"
+            android:textColor="#666"
+            android:layout_marginTop="4dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+            
+            <Button
+                android:id="@+id/buttonSelectBook"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Выбрать файл книги"
+                android:layout_marginEnd="4dp"/>
+            
+            <Button
+                android:id="@+id/buttonRemoveBook"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Удалить"
+                android:backgroundTint="#F44336"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp"/>
+        </LinearLayout>
+
+        <!-- 2. Автор(ы) -->
+        <TextView
+            android:id="@+id/textViewAuthorLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:text="@string/author_label"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Пример: Толстой Л.Н., Бунин И. А."
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <EditText
+            android:id="@+id/editTextAuthor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="ФИО авторов через запятую"
+            android:textSize="14sp"
+            android:inputType="textCapWords"/>
+
+        <!-- 3. Название книги -->
+        <TextView
+            android:id="@+id/textViewTitleLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:text="@string/book_title_label"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Пример: Анна Каренина"
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <EditText
+            android:id="@+id/editTextBookTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Полное название книги/серии"
+            android:textSize="14sp"
+            android:inputType="textCapSentences"/>
+
+        <!-- 4. Выкладываемые книги серии -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Выкладываемые книги серии"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Пример: Мы вернемся домой"
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <EditText
+            android:id="@+id/editTextSeriesBooks"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="Названия книг серии"
+            android:textSize="14sp"
+            android:gravity="top|start"
+            android:scrollbars="vertical"
+            android:inputType="textMultiLine|textCapSentences"/>
+
+        <!-- 5. Жанры -->
+        <TextView
+            android:id="@+id/textViewGenreLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:text="@string/genre_label"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Пример: Фантастика, Юмор, Романы и повести"
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <LinearLayout
+            android:id="@+id/genreCheckboxContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="4dp"/>
+
+        <!-- 6. Обложка книги -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Обложка книги"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="(0, макс. 192 МБ)"
+                android:textSize="12sp"
+                android:textColor="#666"/>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Допустимы форматы JPG, GIF, PNG, WEBP."
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <ImageView
+            android:id="@+id/imageViewCover"
+            android:layout_width="200dp"
+            android:layout_height="300dp"
+            android:layout_gravity="center"
+            android:scaleType="centerCrop"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:layout_marginTop="8dp"
+            android:contentDescription="Обложка книги"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+            
+            <Button
+                android:id="@+id/buttonSelectCover"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Выбрать обложку"
+                android:layout_marginEnd="4dp"/>
+            
+            <Button
+                android:id="@+id/buttonRemoveCover"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Удалить"
+                android:backgroundTint="#F44336"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp"/>
+        </LinearLayout>
+
+        <!-- 7. Аннотация (с кнопками BBCode) -->
+        <TextView
+            android:id="@+id/textViewAnnotationLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:text="@string/annotation_label"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Краткое содержание книги. При заполнении, аннотации нескольких книг серии отделять пустой строкой, указывать нумерацию каждой книги серии арабскими числами. При наличии названий отдельных книг, выделять их жирным."
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Пример: Роман о трагической любви замужней дамы Анны Карениной и офицера Вронского на фоне счастливой семейной жизни дворян Константина Левина и Кити Щербацкой"
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="4dp"/>
+
+        <!-- Кнопки BBCode для аннотации -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="8dp">
+            
+            <!-- Первый ряд: B, I, U, S -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+                
+                <Button
+                    android:id="@+id/btnBold"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="B"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnItalic"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="I"
+                    android:textStyle="italic"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnUnderline"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="U"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnStrike"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="S"
+                    android:textSize="12sp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+            </LinearLayout>
+            
+            <!-- Второй ряд: Цитата, Влево, Центр, Вправо -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+                
+                <Button
+                    android:id="@+id/btnQuote"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="Цитата"
+                    android:textSize="10sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnLeft"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="Влево"
+                    android:textSize="10sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnCenter"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="Центр"
+                    android:textSize="10sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnRight"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="Вправо"
+                    android:textSize="10sp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+            </LinearLayout>
+            
+            <!-- Третий ряд: Спойлер, К, M, ! -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                
+                <Button
+                    android:id="@+id/btnSpoiler"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="Спойлер"
+                    android:textSize="10sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnCur"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="К"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnMod"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="M"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="4dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+                
+                <Button
+                    android:id="@+id/btnEx"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="!"
+                    android:textSize="12sp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Спиннер модераторских тегов -->
+        <Spinner
+            android:id="@+id/spinnerModTags"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"/>
+
+        <EditText
+            android:id="@+id/editTextAnnotation"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:hint="Краткое описание книги"
+            android:textSize="14sp"
+            android:gravity="top|start"
+            android:scrollbars="vertical"
+            android:inputType="textMultiLine|textCapSentences"
+            android:layout_marginTop="8dp"/>
+
+        <!-- 8. Информация об авторе -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Информация об авторе"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <EditText
+            android:id="@+id/editTextAuthorInfo"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="Справка о жизни и деятельности автора книги, ссылка на страницу автора..."
+            android:textSize="14sp"
+            android:gravity="top|start"
+            android:scrollbars="vertical"
+            android:inputType="textMultiLine|textCapSentences"/>
+
+        <!-- 9. Серия книг -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Серия книг"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Пример: Мантикор Артемис — Зов бедствия. Покоривший СТЕНУ 2"
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <EditText
+            android:id="@+id/editTextSeries"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="Ссылки на произведения серии (если есть в Книгохранилище)"
+            android:textSize="14sp"
+            android:gravity="top|start"
+            android:scrollbars="vertical"
+            android:inputType="textMultiLine|textCapWords"/>
+
+        <!-- 10. Число предыдущих скачиваний -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Число предыдущих скачиваний"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <EditText
+            android:id="@+id/editTextDownloads"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Заполняется при переносе книг в Книгохранилище"
+            android:textSize="14sp"
+            android:inputType="number"/>
+
+        <!-- 11. Ссылка на оригинальный пост -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ссылка на оригинальный пост"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Пример: https://4pda.to/forum/index.php?act=findpost&amp;pid=..."
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <EditText
+            android:id="@+id/editTextOriginalPostUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Заполняется при переносе книг в Книгохранилище"
+            android:textSize="14sp"
+            android:inputType="textUri"/>
+
+        <!-- 12. Автор релиза -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Автор релиза"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Пример: https://4pda.to/forum/index.php?showuser=..."
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_marginTop="2dp"/>
+
+        <EditText
+            android:id="@+id/editTextUploader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Ссылка на профиль пользователя, ранее выложившего книгу. Заполняется при переносе книг в Книгохранилище."
+            android:textSize="14sp"
+            android:inputType="textUri"/>
+
+        <!-- 13. Настройки публикации -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Настройки публикации"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <CheckBox
+            android:id="@+id/checkboxSmilies"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Включить смайлики"
+            android:checked="true"/>
+
+        <CheckBox
+            android:id="@+id/checkboxSignature"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Показать подпись"
+            android:checked="true"/>
+
+        <CheckBox
+            android:id="@+id/checkboxNotification"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Уведомлять об ответах по email"
+            android:checked="false"/>
+
+        <!-- Кнопка "Опубликовать" -->
+        <Button
+            android:id="@+id/buttonPublish"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Опубликовать"
+            android:backgroundTint="#4CAF50"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="24dp"/>
+
+        <!-- Кнопка "Предпросмотр" -->
+        <Button
+            android:id="@+id/buttonPreview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Предпросмотр"
+            android:backgroundTint="#2196F3"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="8dp"/>
+
+        <!-- Пространство внизу -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="16dp"/>
+
+    </LinearLayout>
+</ScrollView>

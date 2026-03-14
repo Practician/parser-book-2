@@ -1,0 +1,2433 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Парсер книг 2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="jszip.min.js"></script>
+    <script src="pdf.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-gradient: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+            --bg: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding-bottom: 60px;
+            line-height: 1.5;
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 24px 20px;
+            position: relative;
+            overflow: hidden;
+            border-bottom-left-radius: 24px;
+            border-bottom-right-radius: 24px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .header-logo {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 12px;
+            padding: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-logo img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .header-text {
+            flex: 1;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header span {
+            font-size: 13px;
+            font-weight: 400;
+            opacity: 0.9;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 32px 20px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            margin: 20px 16px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .upload-area:active,
+        .upload-area.drag {
+            background: #eff6ff;
+            border-color: var(--primary);
+            transform: scale(0.98);
+        }
+
+        .upload-area p {
+            font-size: 14px;
+            color: var(--text-sub);
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .upload-icon {
+            font-size: 44px;
+            filter: drop-shadow(0 4px 6px rgba(37, 99, 235, 0.1));
+        }
+
+        input[type=file] {
+            display: none;
+        }
+
+        .status {
+            margin: 0 16px 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: var(--shadow-sm);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status.show {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status.ok {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status.err {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .status.inf {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        .auth-block {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            margin: 16px;
+            padding: 16px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid white;
+        }
+
+        .bridge-status {
+            position: fixed;
+            top: 2px;
+            right: 8px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .bridge-ok {
+            background: #28a745;
+            color: white;
+        }
+
+        .bridge-fail {
+            background: #dc3545;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            margin: 0 16px 16px;
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid white;
+        }
+
+        .card h3 {
+            font-size: 13px;
+            color: var(--text-sub);
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--bg);
+            padding: 10px 0;
+        }
+
+        .info-row:last-child {
+            border: none;
+        }
+
+        .info-label {
+            font-size: 13px;
+            color: var(--text-sub);
+            width: 100px;
+            flex-shrink: 0;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: var(--text-main);
+            flex: 1;
+            word-break: break-word;
+            font-weight: 500;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 2px 6px;
+            flex-shrink: 0;
+        }
+
+        .cover-preview {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .cover-preview img {
+            max-width: 120px;
+            max-height: 180px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+        }
+
+        .no-cover {
+            width: 100px;
+            height: 140px;
+            background: #f0f2f5;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 12px;
+        }
+
+
+        .book-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 14px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            background: white;
+            gap: 12px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .book-item.selected {
+            background: #eff6ff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        .covers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 8px;
+            margin: 0 12px 12px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 10px;
+        }
+
+        .cover-thumb {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .cover-thumb:active {
+            transform: scale(0.95);
+        }
+
+        .cover-thumb.selected {
+            border-color: #1877f2;
+            box-shadow: 0 0 8px rgba(24, 119, 242, 0.4);
+        }
+
+        .no-cover-thumb {
+            background: #f0f2f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            color: #aaa;
+            text-align: center;
+            padding: 4px;
+        }
+
+        .book-num {
+            font-size: 12px;
+            color: #1877f2;
+            font-weight: 700;
+            width: 20px;
+            flex-shrink: 0;
+        }
+
+        .book-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .book-title {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .book-author {
+            font-size: 11px;
+            color: #606770;
+        }
+
+        .btn-sm {
+            background: none;
+            border: 1px solid #ccd0d5;
+            border-radius: 4px;
+            padding: 3px 7px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .btn-sm:active {
+            background: #eee;
+        }
+
+        .btn-sm.del {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .annotation-box {
+            max-height: 160px;
+            overflow-y: auto;
+            font-size: 13px;
+            color: var(--text-main);
+            line-height: 1.6;
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .bb-box {
+            width: 100%;
+            min-height: 120px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            resize: vertical;
+            background: white;
+            color: var(--text-main);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        button.btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        button.btn-primary {
+            background: var(--primary-gradient);
+            color: #fff;
+        }
+
+        button.btn-info {
+            background: #0ea5e9;
+            color: #fff;
+        }
+
+        button.btn-success {
+            background: #10b981;
+            color: #fff;
+        }
+
+        button.btn-danger {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        button.btn:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .search-result-card {
+            background: white;
+            padding: 16px;
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+
+        .search-result-card:active {
+            transform: scale(0.99);
+            border-color: var(--primary);
+        }
+
+        /* Auth block */
+        .auth-block {
+            background: white;
+            margin: 0 16px 16px;
+            border-radius: var(--radius);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid #ef4444;
+            /* Not logged in */
+        }
+
+        .auth-block.auth-ok {
+            border-left-color: #10b981;
+        }
+
+        .auth-block.auth-err {
+            border-left-color: #ef4444;
+        }
+
+        .auth-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+            background: var(--bg);
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+        }
+
+        .auth-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .auth-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .auth-sub {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 2px;
+            font-weight: 500;
+        }
+
+        .auth-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn-auth-login {
+            background: #1877f2;
+            color: #fff;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-auth-logout {
+            background: #e4e6eb;
+            color: #1c1e21;
+            border: none;
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-auth-login:active,
+        .btn-auth-logout:active {
+            opacity: .85;
+        }
+
+        /* Search input */
+        .search-input-row {
+            display: flex;
+            gap: 8px;
+            margin: 0 12px 12px;
+        }
+
+        .search-input-row input {
+            flex: 1;
+            padding: 9px 12px;
+            border: 1px solid #ccd0d5;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .search-input-row input:focus {
+            outline: none;
+            border-color: #1877f2;
+        }
+
+        .search-input-row button {
+            padding: 9px 16px;
+            border: none;
+            border-radius: 8px;
+            background: #1877f2;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .search-input-row button:active {
+            opacity: .85;
+        }
+
+
+
+        .progress {
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 4px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #1877f2;
+            width: 0;
+            transition: width .3s;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #1877f2;
+            color: #fff;
+            border-radius: 10px;
+            font-size: 11px;
+            padding: 1px 7px;
+            margin-left: 4px;
+        }
+
+        /* Search Results Styles */
+        .search-results-section {
+            display: none;
+            margin: 12px;
+        }
+
+        .search-results-section.show {
+            display: block;
+        }
+
+        .search-result-card {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #1877f2;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-result-info {
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        .search-result-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1c1e21;
+            margin-bottom: 2px;
+        }
+
+        .search-result-score {
+            font-size: 11px;
+            color: #65676b;
+        }
+
+        .search-result-btn {
+            background: #e7f3ff;
+            color: #1877f2;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .search-result-btn:active {
+            background: #dbeaff;
+        }
+    </style>
+
+    <script>
+        window.onerror = function (msg, url, line, col, error) {
+            const errStr = `❌ Глобальная ошибка: ${msg} (строка ${line}:${col})`;
+            status(errStr, 'err');
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function (event) {
+            status('❌ Ошибка Promise: ' + event.reason, 'err');
+        });
+    </script>
+
+</head>
+
+<body>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+        function testBridge() {
+            if (window.AndroidBridge && AndroidBridge.saveFile) {
+                const testData = "Test Bridge Working! Time: " + new Date().toISOString();
+                const base64 = btoa(unescape(encodeURIComponent(testData)));
+                AndroidBridge.saveFile(base64, "test_test.txt", "text/plain");
+            } else {
+                alert("Ошибка: AndroidBridge не доступен!");
+            }
+        }
+    </script>
+
+    <div class="header">
+        <div class="header-logo"><img src="logo.png" alt="Logo"></div>
+        <div class="header-text">
+            <h1>Парсер книг 2</h1>
+            <span>Комбайн для Книгохранилища</span>
+        </div>
+    </div>
+    <div id="bridgeStatus" class="bridge-status bridge-fail" style="display:none">Bridge: Fail</div>
+
+    <!-- STATUS -->
+    <div id="status" class="status"></div>
+
+    <!-- ═══ AUTH BLOCK ═══ -->
+    <div id="authBlock" class="auth-block">
+        <div class="auth-icon">👤</div>
+        <div class="auth-info">
+            <div class="auth-name" id="authName">Не авторизован</div>
+            <div class="auth-sub" id="authSub">Войдите для поиска и публикации</div>
+        </div>
+        <div class="auth-actions">
+            <button class="btn-auth-login" id="btnLogin" onclick="openLoginPage()">Войти</button>
+        </div>
+    </div>
+
+    <!-- ═══ ПОИСК ПО КНИГОХРАНИЛИЩУ ═══ -->
+    <div class="section-header">🔍 Поиск по Книгохранилищу</div>
+    <div class="search-input-row">
+        <input type="text" id="searchQueryInput" placeholder="Автор или название…" />
+        <button onclick="runSearch()">Найти</button>
+    </div>
+
+    <!-- ═══ UPLOAD ═══ -->
+    <div class="section-header">📤 Загрузка книг</div>
+    <div id="section-upload" class="section">
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <p><strong>Нажмите или перетащите файлы</strong></p>
+            <p>FB2 · FB2.ZIP · EPUB · PDF</p>
+            <input type="file" id="fileInput" accept=".fb2,.zip,.epub,.pdf" multiple>
+        </div>
+
+        <!-- Поле для парсинга по ссылке -->
+        <div class="card" style="margin-top: 12px; background: #fffbe6; border-left: 4px solid #ffc107;">
+            <h3 style="margin-top:0">Или вставьте ссылку на пост 4PDA</h3>
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Извлечет автора раздачи и количество
+                скачиваний из уже опубликованной книги:</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="postUrlInput" placeholder="https://4pda.to/forum/index.php?showtopic=..."
+                    style="flex: 1; padding: 8px; border: 1px solid #ccd0d5; border-radius: 6px;" />
+                <button class="btn btn-primary" onclick="parsePostUrl()">Разобрать</button>
+            </div>
+        </div>
+
+        <!-- Current book info -->
+        <div id="infoCard" class="card" style="display:none">
+            <h3>Последняя книга</h3>
+            <div class="cover-preview" id="coverPreview">
+                <div class="no-cover">Нет обложки</div>
+            </div>
+            <div style="text-align:center;margin-bottom:12px">
+                <button id="btnDownloadCover" class="btn-sm" style="display:none" onclick="downloadCover()">🖼 Скачать
+                    обложку</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Автор</span>
+                <span class="info-value" id="iAuthor">—</span>
+                <button class="copy-btn" onclick="copy('author')" title="Копировать">📋</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Название</span>
+                <span class="info-value" id="iTitle">—</span>
+                <button class="copy-btn" onclick="copy('title')" title="Копировать">📋</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Серия</span>
+                <span class="info-value" id="iSeries">—</span>
+                <button class="copy-btn" onclick="copy('series')" title="Копировать">📋</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">№ в серии</span>
+                <span class="info-value" id="iNum">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Жанр</span>
+                <span class="info-value" id="iGenre">—</span>
+            </div>
+            <div class="info-row" id="rowUploader" style="display:none; background:#fffbe6;">
+                <span class="info-label">👤 Выложил</span>
+                <span class="info-value" id="iUploader">—</span>
+            </div>
+            <div class="info-row" id="rowDownloads" style="display:none; background:#fffbe6;">
+                <span class="info-label">⬇️ Скачиваний</span>
+                <span class="info-value" id="iDownloads">—</span>
+            </div>
+            <div class="info-row" id="rowSourceLink" style="display:none; background:#fffbe6;">
+                <span class="info-label">🔗 Источник</span>
+                <span class="info-value" id="iSourceLink">—</span>
+            </div>
+            <div class="info-row" style="display:none">
+                <span class="info-label">Язык</span>
+                <span class="info-value" id="iLang">—</span>
+            </div>
+        </div>
+
+        <!-- Annotation -->
+        <div id="annotCard" class="card" style="display:none">
+            <h3 style="margin-bottom: 8px;">Аннотация</h3>
+            <div class="annotation-box" id="iAnnotation" style="white-space: pre-wrap; margin-bottom: 8px;"></div>
+            <div style="text-align: center;">
+                <button class="btn-sm" onclick="copy('annotation')" title="Копировать">📋 Копировать</button>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div id="searchResultsSection" class="search-results-section">
+            <h3 style="font-size: 14px; color: #606770; font-weight: 600; margin: 0 0 10px; text-transform: uppercase;">
+                📚 Найдено в Книгохранилище</h3>
+            <div id="searchResultsContainer"></div>
+        </div>
+
+        <div style="margin:0 12px 16px">
+            <button class="btn btn-danger" onclick="resetAll()">🗑 Очистить всё</button>
+        </div>
+
+    </div>
+
+    <!-- ═══ GRID (NEW) ═══ -->
+    <div class="section-header">🖼 Обложки</div>
+    <div id="coversGrid" class="covers-grid"></div>
+
+    <!-- ═══ BOOKS ═══ -->
+    <div class="section-header">📚 Список книг</div>
+    <div id="section-books" class="section">
+
+        <div class="card">
+            <h3>Книги серии <span id="bookCountLabel"></span></h3>
+            <div id="bookList"></div>
+        </div>
+
+        <!-- Series summary -->
+        <div id="seriesCard" class="card" style="display:none">
+            <h3>Серия</h3>
+            <div class="info-row">
+                <span class="info-label">Автор</span>
+                <span class="info-value" id="sAuthor">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Серия</span>
+                <span class="info-value" id="sSeries">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Книг</span>
+                <span class="info-value" id="sCount">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Жанр</span>
+                <span class="info-value" id="sGenre">—</span>
+            </div>
+        </div>
+
+        <div style="margin:0 12px 16px">
+            <button class="btn btn-success" onclick="downloadZip()">📦 Скачать все FB2.ZIP</button>
+        </div>
+
+    </div>
+
+    <!-- ═══ BB-CODE ═══ -->
+    <div class="section-header">📋 BB-код и публикация</div>
+    <div id="section-bbcode" class="section">
+
+        <div class="card">
+            <h3>BB-код для 4PDA</h3>
+            <textarea id="bbArea" class="bb-box" placeholder="Загрузите книги на вкладке «Загрузка»…"></textarea>
+        </div>
+
+        <div style="margin:0 12px 16px; display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="btn btn-primary" style="flex: 1; min-width: 140px;" onclick="copyBB()">📋
+                Скопировать</button>
+            <button class="btn btn-success" style="flex: 1; min-width: 140px;" onclick="sendToForum()">🚀
+                Опубликовать</button>
+            <button class="btn btn-info"
+                style="flex: 1; min-width: 140px; background-color: #f39c12; color: white; border: none;"
+                onclick="returnToForum()">↩️ К форме</button>
+            <button class="btn btn-info"
+                style="flex: 1; min-width: 140px; background-color: #17a2b8; color: white; border: none;"
+                onclick="searchOnForum()">🔍 Поиск на форуме</button>
+        </div>
+
+
+    </div>
+
+    <script>
+        // ════════════════════════════════════════════════
+        //  LOGGING (REMOVED)
+        // ════════════════════════════════════════════════
+
+        // ════════════════════════════════════════════════
+        //  STATE
+        // ════════════════════════════════════════════════
+        const GENRE_MAP = {
+            "sf_history": "Альтернативная история",
+            "sf_action": "Боевая фантастика",
+            "sf_epic": "Фантастика",
+            "sf_heroic": "Фантастика",
+            "sf_detective": "Детективная фантастика",
+            "sf_cyberpunk": "Киберпанк/Стимпанк/Паропанк",
+            "sf_stimpank": "Киберпанк/Стимпанк/Паропанк",
+            "sf_space": "Космическая фантастика",
+            "sf_social": "Социально-психологическая фантастика",
+            "sf_horror": "Мистика и ужасы",
+            "sf_humor": "Юмористическая фантастика",
+            "sf_fantasy": "Фэнтези",
+            "sf": "Научная фантастика",
+            "sf_realrpg": "ЛитРПГ/РеалРПГ",
+            "sf_litrpg": "ЛитРПГ/РеалРПГ",
+            "sf_postapocalyptic": "Постапокалипсис",
+            "dark_fantasy": "Фэнтези",
+            "fantasy_action": "Фэнтези",
+            "hronoopera": "Хроноопера",
+            "sf_all": "Фантастика",
+            "sf_mystic": "Мистика и ужасы",
+            "network_literature": "Сетевая литература",
+            "det_classic": "Детектив",
+            "det_police": "Детектив",
+            "det_action": "Боевик",
+            "det_irony": "Детектив",
+            "det_history": "История",
+            "det_espionage": "Триллеры",
+            "det_crime": "Криминал",
+            "det_political": "Политика",
+            "det_maniac": "Триллеры",
+            "det_hard": "Детектив",
+            "thriller": "Триллеры",
+            "detective": "Детектив",
+            "det_all": "Детектив",
+            "popadanec": "Попаданцы",
+            "popadancy": "Попаданцы",
+            "back_to_ussr": "Назад в СССР",
+            "back-to-ussr": "Назад в СССР",
+            "prose_classic": "Романы и повести",
+            "prose_history": "История",
+            "prose_contemporary": "Романы и повести",
+            "prose_counter": "Контркультура",
+            "prose_rus_classic": "Романы и повести",
+            "prose_su_classics": "Романы и повести",
+            "great_story": "Романы и повести",
+            "roman": "Романы и повести",
+            "love_contemporary": "Романы и повести",
+            "love_history": "Романы и повести",
+            "love_detective": "Детектив",
+            "love_short": "Романы и повести",
+            "love_erotica": "Романы и повести",
+            "adv_western": "Приключения",
+            "adv_history": "Приключения",
+            "adv_indian": "Приключения",
+            "adv_maritime": "Приключения",
+            "adv_geo": "Путешествия и география",
+            "adv_animal": "Природа и животные",
+            "adventure": "Приключения",
+            "adv_all": "Приключения",
+            "child_tale": "Сказки, мифы и легенды",
+            "child_verse": "Детская литература",
+            "child_prose": "Детская литература",
+            "child_sf": "Детская литература",
+            "child_det": "Детская литература",
+            "child_adv": "Детская литература",
+            "child_education": "Детская литература",
+            "children": "Детская литература",
+            "Child_all": "Детская литература",
+            "poetry": "Поэзия",
+            "dramaturgy": "Драматургия и комедия",
+            "poetry_all": "Поэзия",
+            "antique_ant": "История",
+            "antique_european": "История",
+            "antique_russian": "История",
+            "antique_east": "История",
+            "antique_myths": "Сказки, мифы и легенды",
+            "antique": "История",
+            "history_all": "История",
+            "sci_history": "История",
+            "sci_psychology": "Психология",
+            "sci_culture": "Культурология",
+            "sci_religion": "Религия и эзотерика",
+            "sci_philosophy": "Философия",
+            "sci_politics": "Политика",
+            "sci_business": "Бизнес литература",
+            "sci_juris": "Юриспруденция",
+            "sci_linguistic": "Языки и словари",
+            "sci_medicine": "Медицина и здоровье",
+            "sci_phys": "Технические науки",
+            "sci_math": "Технические науки",
+            "sci_chem": "Технические науки",
+            "sci_biology": "Наука и образование",
+            "sci_tech": "Технические науки",
+            "science": "Наука и образование",
+            "psycho_all": "Психология",
+            "banking_all": "Бизнес литература",
+            "Sci_all": "Наука и образование",
+            "foreign_language": "Языки и словари",
+            "comp_www": "Компьютерная литература",
+            "comp_programming": "Компьютерная литература",
+            "comp_hard": "Компьютерная литература",
+            "comp_soft": "Компьютерная литература",
+            "comp_db": "Компьютерная литература",
+            "comp_osnet": "Компьютерная литература",
+            "computers": "Компьютерная литература",
+            "comp_all": "Компьютерная литература",
+            "ref_encyc": "Справочная литература",
+            "ref_dict": "Языки и словари",
+            "ref_ref": "Справочная литература",
+            "ref_guide": "Справочная литература",
+            "reference": "Справочная литература",
+            "ref_all": "Справочная литература",
+            "nonf_biography": "Мемуары и биографии",
+            "nonf_publicism": "Публицистика",
+            "nonf_criticism": "Критика",
+            "design": "Хобби и досуг",
+            "nonfiction": "Документальная литература",
+            "nonf_all": "Документальная литература",
+            "military_memoirs": "Мемуары и биографии",
+            "religion_rel": "Религия и эзотерика",
+            "religion_esoterics": "Религия и эзотерика",
+            "religion_self": "Психология",
+            "religion": "Религия и эзотерика",
+            "rel_all": "Религия и эзотерика",
+            "humor_anecdote": "Юмор",
+            "humor_prose": "Юмор",
+            "humor_verse": "Юмор",
+            "humor": "Юмор",
+            "humor_all": "Юмор",
+            "home_cooking": "Кулинария",
+            "home_pets": "Домашние животные",
+            "home_crafts": "Хобби и досуг",
+            "home_entertain": "Хобби и досуг",
+            "home_health": "Медицина и здоровье",
+            "home_garden": "Сад и огород",
+            "home_diy": "Сделай сам",
+            "home_sport": "Спорт",
+            "home_sex": "Романы и повести",
+            "home": "Хобби и досуг",
+            "home_all": "Дом и семья",
+            "hobbies_all": "Хобби и досуг",
+            "periodic": "Журналы и комиксы",
+            "military": "О войне",
+            "nonf_military": "О войне",
+            "military_history": "О войне",
+            "poetry_military": "О войне"
+        };
+
+        let books = [];
+        let currentBook = null;
+        const MAX_DEPTH = 10;
+
+        function mapGenre(raw) {
+            if (!raw) return 'Не указано';
+            const parts = raw.split(/[\s,;]+/).filter(Boolean);
+            const res = parts.map(p => {
+                let s = p.trim().toLowerCase().replace(/-/g, '_');
+
+                // 1. Direct match
+                if (GENRE_MAP[s]) return GENRE_MAP[s];
+
+                // 2. Smart 'etc' handling
+                if (s.endsWith('_etc')) {
+                    const base = s.replace('_etc', '');
+                    if (GENRE_MAP[base]) return GENRE_MAP[base] + ' (прочее)';
+                }
+
+                // 3. Aggressive prefix stripping
+                const stripped = s.replace(/^(sf|fantasy|prose|det|love|adv|child|sci|nonf|humor|comp|ref|religion)_?/, '');
+                if (GENRE_MAP[stripped]) return GENRE_MAP[stripped];
+
+                // 4. underscore fallback
+                if (s.includes('_')) {
+                    const lastPart = s.split('_').pop();
+                    if (GENRE_MAP[lastPart]) return GENRE_MAP[lastPart];
+                }
+
+                // 5. Final fallback - keep original (lowercase) for better debugging
+                return p;
+            });
+            const result = [...new Set(res)].join(', ');
+            return result;
+        }
+
+        // ════════════════════════════════════════════════
+        //  INIT
+        // ════════════════════════════════════════════════
+        document.addEventListener('DOMContentLoaded', () => {
+            const area = document.getElementById('uploadArea');
+            const input = document.getElementById('fileInput');
+
+            area.addEventListener('click', () => input.click());
+
+            // Wire search input Enter key
+            const searchInput = document.getElementById('searchQueryInput');
+            if (searchInput) searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+            area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('drag'); });
+            area.addEventListener('dragleave', () => area.classList.remove('drag'));
+            area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+            input.addEventListener('change', e => handleFiles(e.target.files));
+
+            // Bridge check + request auth state
+            setTimeout(() => {
+                const bs = document.getElementById('bridgeStatus');
+                if (window.AndroidBridge) {
+                    bs.innerText = 'Bridge: OK';
+                    bs.className = 'bridge-status bridge-ok';
+                    // Ask Android for current auth state
+                    if (AndroidBridge.getAuthState) {
+                        const state = AndroidBridge.getAuthState();
+                        if (state) {
+                            try {
+                                const s = JSON.parse(state);
+                                if (s.loggedIn) window.onAuthStateChanged(true, s.username);
+                            } catch (e) { }
+                        }
+                    }
+                } else {
+                    bs.innerText = 'Bridge: Fail';
+                    bs.className = 'bridge-status bridge-fail';
+                }
+            }, 500);
+        });
+
+        // ════════════════════════════════════════════════
+        //  AUTH
+        // ════════════════════════════════════════════════
+        let authState = { loggedIn: false, username: '' };
+
+        function openLoginPage() {
+            // Open real 4PDA login page in native forum WebView (shows captcha)
+            if (window.AndroidBridge && AndroidBridge.openForumUrl) {
+                AndroidBridge.openForumUrl('https://4pda.to/forum/index.php?act=auth');
+            } else {
+                window.open('https://4pda.to/forum/index.php?act=auth', '_blank');
+            }
+        }
+
+        // Called from Android after user logged in via native WebView
+        window.onAuthStateChanged = function (loggedIn, username) {
+            authState = { loggedIn: !!loggedIn, username: username || '' };
+            const block = document.getElementById('authBlock');
+            const nameEl = document.getElementById('authName');
+            const subEl = document.getElementById('authSub');
+            const btnLogin = document.getElementById('btnLogin');
+            if (loggedIn) {
+                block.className = 'auth-block auth-ok';
+                nameEl.textContent = username;
+                subEl.textContent = '✅ Авторизован на 4PDA';
+                btnLogin.textContent = 'Выйти';
+                btnLogin.onclick = doLogout;
+                if (currentBook && currentBook.title) setTimeout(() => searchOnForum(), 400);
+            } else {
+                block.className = 'auth-block';
+                nameEl.textContent = 'Не авторизован';
+                subEl.textContent = 'Войдите для поиска и публикации';
+                btnLogin.textContent = 'Войти';
+                btnLogin.onclick = openLoginPage;
+            }
+        };
+
+        function doLogout() {
+            if (window.AndroidBridge && AndroidBridge.logoutFromForum) {
+                AndroidBridge.logoutFromForum();
+            } else {
+                window.onAuthStateChanged(false, '');
+            }
+        }
+
+        // ════════════════════════════════════════════════
+        //  SEARCH
+        // ════════════════════════════════════════════════
+        function runSearch() {
+            const q = document.getElementById('searchQueryInput').value.trim();
+            if (q) searchOnForum(q);
+            else if (currentBook && currentBook.title) searchOnForum();
+            else status('❌ Введите запрос для поиска', 'err');
+        }
+
+        // ════════════════════════════════════════════════
+        //  FILE HANDLING
+        // ════════════════════════════════════════════════
+        async function handleFiles(files) {
+            if (!files || !files.length) return;
+            status('⏳ Обработка ' + files.length + ' файл(ов)…', 'inf');
+
+            const fileList = Array.from(files);
+            const groups = groupMultiVolumeArchives(fileList);
+
+            let ok = 0, fail = 0;
+            for (const group of groups) {
+                try {
+                    if (group.isMultiVolume) {
+                        await processMultiVolumeArchive(group);
+                    } else {
+                        await processFile(group.files[0]);
+                    }
+                    ok++;
+                } catch (e) {
+                    fail++;
+                }
+            }
+            updateUI();
+            if (fail === 0) status('✅ Добавлено книг: ' + ok, 'ok');
+            else status('❌ Ошибка при обработке некоторых файлов', 'err');
+            return ok > 0;
+        }
+
+        function isMultiVolumeArchivePart(name) {
+            return /\.(z\d{2}|\d{3})$/i.test(name);
+        }
+
+        function groupMultiVolumeArchives(files) {
+            const archives = new Map();
+            const normalFiles = [];
+
+            files.forEach(f => {
+                const name = f.name;
+                const lo = name.toLowerCase();
+                if (isMultiVolumeArchivePart(name) || lo.endsWith('.zip')) {
+                    const base = name.replace(/\.(z\d{2}|\d{3}|zip)$/i, '');
+                    if (!archives.has(base)) archives.set(base, []);
+                    archives.get(base).push(f);
+                } else {
+                    normalFiles.push({ isMultiVolume: false, files: [f] });
+                }
+            });
+
+            const result = [...normalFiles];
+            archives.forEach((filesInGroup, base) => {
+                if (filesInGroup.length > 1 || filesInGroup.some(f => isMultiVolumeArchivePart(f.name))) {
+                    // Sort: .z01, .z02 ... .zip last
+                    filesInGroup.sort((a, b) => {
+                        const extA = a.name.split('.').pop().toLowerCase();
+                        const extB = b.name.split('.').pop().toLowerCase();
+                        if (extA === 'zip') return 1;
+                        if (extB === 'zip') return -1;
+                        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                    });
+                    result.push({ isMultiVolume: true, files: filesInGroup, baseName: base });
+                } else {
+                    result.push({ isMultiVolume: false, files: filesInGroup });
+                }
+            });
+            return result;
+        }
+
+        async function processMultiVolumeArchive(group) {
+            const buffers = [];
+            for (const f of group.files) {
+                buffers.push(await f.arrayBuffer());
+            }
+
+            let totalLen = buffers.reduce((acc, b) => acc + b.byteLength, 0);
+            let combined = new Uint8Array(totalLen);
+            let offset = 0;
+            for (const b of buffers) {
+                combined.set(new Uint8Array(b), offset);
+                offset += b.byteLength;
+            }
+
+            const zip = await JSZip.loadAsync(combined);
+            const found = await parseFB2Zip(zip, 0);
+            if (!found) throw new Error('Книги не найдены в многотомном архиве');
+        }
+
+        async function processFile(file) {
+            const lo = file.name.toLowerCase();
+            if (lo.endsWith('.fb2')) {
+                await parseFB2File(file);
+                addBook();
+            } else if (lo.endsWith('.epub')) {
+                const zip = await JSZip.loadAsync(file);
+                await parseEPUB(zip);
+                addBook();
+            } else if (lo.endsWith('.zip')) {
+                const zip = await JSZip.loadAsync(file);
+                const found = await parseFB2Zip(zip, 0);
+                if (!found) throw new Error('Книги не найдены в архиве');
+            } else if (lo.endsWith('.pdf')) {
+                await parsePDF(file);
+                addBook();
+            } else {
+                throw new Error('Неподдерживаемый формат: ' + file.name);
+            }
+        }
+
+        // ════════════════════════════════════════════════
+        //  PARSERS
+        // ════════════════════════════════════════════════
+        function resetBook() {
+            const oldUploader = currentBook?.uploader || '';
+            const oldDownloads = currentBook?.downloads || 0;
+            const oldUrl = currentBook?.originalPostUrl || '';
+
+            currentBook = {
+                author: '', title: '', series: '', seriesNum: '', annotation: '',
+                genre: '', genreCode: '', lang: '', year: '',
+                cover: { data: null, mime: 'image/jpeg' },
+                originalFB2: '', encoding: 'utf-8', filename: '', bodyText: '',
+                uploader: oldUploader,
+                uploaderId: currentBook?.uploaderId || '',
+                downloads: oldDownloads,
+                originalPostUrl: oldUrl
+            };
+        }
+
+        function addBook() {
+            if (!currentBook || (!currentBook.title && !currentBook.author)) return;
+            currentBook.filename = makeFilename(currentBook);
+            books.push({ ...currentBook });
+            // Auto-search (v23)
+            if (books.length === 1 && currentBook.title) {
+                setTimeout(() => searchOnForum(), 800);
+            }
+        }
+
+        // — FB2 from File object
+        async function parseFB2File(file) {
+            resetBook();
+            const buf = await file.arrayBuffer();
+            const u8 = new Uint8Array(buf);
+            const head = new TextDecoder('ascii').decode(u8.slice(0, 300));
+            const enc = /encoding=["'](windows-1251|cp1251)/i.test(head) ? 'windows-1251' : 'utf-8';
+            const text = new TextDecoder(enc, { fatal: false }).decode(u8);
+            await parseFB2Text(text);
+            currentBook.originalFB2 = text;
+            currentBook.encoding = enc;
+            currentBook.filename = file.name;
+        }
+
+        // — FB2 from text (inside ZIP)
+        async function parseFB2Text(text) {
+            if (!currentBook) resetBook();
+            const doc = new DOMParser().parseFromString(text, 'text/xml');
+            const ti = doc.querySelector('title-info');
+            if (!ti) {
+                return;
+            }
+
+            // Authors
+            const authors = Array.from(ti.querySelectorAll('author'));
+            currentBook.author = authors.map(a => {
+                const fn = a.querySelector('first-name')?.textContent.trim() || '';
+                const ln = a.querySelector('last-name')?.textContent.trim() || '';
+                return (ln + (fn ? ' ' + fn : '')).trim();
+            }).filter(Boolean).join(', ') || 'Неизвестный автор';
+
+            currentBook.title = ti.querySelector('book-title')?.textContent.trim() || '';
+
+            const seqs = ti.querySelectorAll('sequence');
+            for (let seq of seqs) {
+                const sName = seq.getAttribute('name') || '';
+                if (sName && sName.toLowerCase() !== 'ru') {
+                    currentBook.series = sName;
+                    currentBook.seriesNum = seq.getAttribute('number') || '';
+                    break;
+                }
+            }
+
+            const annot = ti.querySelector('annotation');
+            // Annotation in spoiler
+            if (annot) {
+                currentBook.annotation = Array.from(annot.querySelectorAll('p'))
+                    .map(p => p.textContent.trim()).join('\n\n');
+            }
+
+            // Improved Genre Handling
+            const genreTags = Array.from(ti.querySelectorAll('genre'));
+            const genreCodes = genreTags.map(g => g.textContent.trim()).filter(Boolean).join(', ');
+            if (genreCodes) {
+                currentBook.genreCode = genreCodes;
+                currentBook.genre = mapGenre(genreCodes);
+            }
+
+            currentBook.lang = ti.querySelector('lang')?.textContent.trim() || '';
+
+            // Year (from publish-info or document-info or date)
+            const yr = doc.querySelector('publish-info year')?.textContent.trim() ||
+                doc.querySelector('document-info date')?.textContent.trim() ||
+                doc.querySelector('date')?.textContent.trim() || '';
+            const yrMatch = yr.match(/\d{4}/);
+            currentBook.year = yrMatch ? yrMatch[0] : '';
+
+            // Improved Cover Extraction
+            const cp = ti.querySelector('coverpage image');
+            let foundBin = null;
+            let coverMime = 'image/jpeg';
+
+            if (cp) {
+                const href = cp.getAttribute('l:href') || cp.getAttribute('xlink:href') || cp.getAttribute('href') || '';
+                const id = href.replace('#', '');
+
+                // 1. Direct search by ID
+                foundBin = doc.getElementById(id) ||
+                    doc.querySelector(`binary[id="${id}"]`) ||
+                    doc.querySelector(`binary[*|id="${id}"]`);
+
+                if (foundBin) {
+                    coverMime = foundBin.getAttribute('content-type') || 'image/jpeg';
+                }
+            }
+
+            // 2. Fallback: Search for any binary that might be a cover if not found yet
+            if (!foundBin) {
+                const allBins = Array.from(doc.querySelectorAll('binary'));
+                // Take first binary as fallback if it looks like an image
+                for (let b of allBins) {
+                    const ct = b.getAttribute('content-type') || '';
+                    if (ct.includes('image') || b.textContent.length > 1000) {
+                        foundBin = b;
+                        coverMime = ct || 'image/jpeg';
+                        break;
+                    }
+                }
+            }
+
+            if (foundBin) {
+                const rawB64 = foundBin.textContent.replace(/\s/g, ''); // Clean base64
+                currentBook.cover = {
+                    data: await optimizeCover(rawB64, coverMime),
+                    mime: coverMime
+                };
+            } else {
+            }
+        }
+
+        // — FB2 inside ZIP (recursive)
+        async function parseFB2Zip(zip, depth) {
+            if (depth > MAX_DEPTH) return false;
+            let found = false;
+            for (const [name, entry] of Object.entries(zip.files)) {
+                if (entry.dir) continue;
+                const lo = name.toLowerCase();
+                if (lo.endsWith('.fb2')) {
+                    resetBook();
+                    const raw = await entry.async('arraybuffer');
+                    const u8 = new Uint8Array(raw);
+                    const hd = new TextDecoder('ascii').decode(u8.slice(0, 300));
+                    const enc = /encoding=["'](windows-1251|cp1251)/i.test(hd) ? 'windows-1251' : 'utf-8';
+                    const txt = new TextDecoder(enc, { fatal: false }).decode(u8);
+                    await parseFB2Text(txt);
+                    currentBook.originalFB2 = txt;
+                    currentBook.encoding = enc;
+                    currentBook.filename = name;
+                    addBook();
+                    found = true;
+                } else if (lo.endsWith('.zip')) {
+                    const nested = await JSZip.loadAsync(await entry.async('arraybuffer'));
+                    if (await parseFB2Zip(nested, depth + 1)) found = true;
+                }
+            }
+            return found;
+        }
+
+        // — EPUB
+        async function parseEPUB(zip) {
+            resetBook();
+            const containerXML = await zip.file('META-INF/container.xml').async('text');
+            const containerDoc = new DOMParser().parseFromString(containerXML, 'text/xml');
+            const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
+            if (!opfPath) throw new Error('OPF not found');
+
+            const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
+            const opfText = await zip.file(opfPath).async('text');
+            const opfDoc = new DOMParser().parseFromString(opfText, 'text/xml');
+            const meta = opfDoc.querySelector('metadata');
+
+            currentBook.title = meta?.querySelector('title')?.textContent.trim() || 'Без названия';
+            currentBook.author = meta?.querySelector('creator')?.textContent.trim() || 'Неизвестный автор';
+            currentBook.lang = meta?.querySelector('language')?.textContent.trim() || '';
+
+            const d = meta?.querySelector('date')?.textContent.trim() || '';
+            const yrMatch = d.match(/\d{4}/);
+            currentBook.year = yrMatch ? yrMatch[0] : '';
+
+            const desc = meta?.querySelector('description');
+            if (desc) currentBook.annotation = desc.textContent.trim();
+
+            const sm = opfDoc.querySelector('meta[name="calibre:series"]');
+            if (sm) {
+                const sName = sm.getAttribute('content') || '';
+                if (sName.toLowerCase() !== 'ru') {
+                    currentBook.series = sName;
+                }
+            }
+            const si = opfDoc.querySelector('meta[name="calibre:series_index"]');
+            if (si) currentBook.seriesNum = si.getAttribute('content') || '';
+
+            // Cover
+            const coverItem = opfDoc.querySelector('item[properties*="cover-image"]') ||
+                opfDoc.querySelector('item[id="cover"]') ||
+                opfDoc.querySelector('item[media-type^="image"]');
+            if (coverItem) {
+                const path = opfDir + coverItem.getAttribute('href');
+                const f = zip.file(path);
+                if (f) {
+                    const b64 = await f.async('base64');
+                    const mime = coverItem.getAttribute('media-type') || 'image/jpeg';
+                    currentBook.cover = { data: await optimizeCover(b64, mime), mime };
+                }
+            }
+
+            currentBook.epubZip = zip;
+            currentBook.epubOpfDir = opfDir;
+
+            // Text extraction (v22)
+            try {
+                const spine = Array.from(opfDoc.querySelectorAll('spine > itemref'));
+                const manifest = Array.from(opfDoc.querySelectorAll('manifest > item'));
+                let allText = '';
+                for (const ref of spine) {
+                    const id = ref.getAttribute('idref');
+                    const item = manifest.find(i => i.getAttribute('id') === id);
+                    if (item) {
+                        const href = item.getAttribute('href');
+                        const f = zip.file(opfDir + href);
+                        if (f) {
+                            const html = await f.async('text');
+                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                            allText += (doc.body?.innerText || doc.body?.textContent || '') + '\n\n';
+                        }
+                    }
+                }
+                currentBook.bodyText = allText;
+            } catch (e) { }
+        }
+
+        // — PDF
+        async function parsePDF(file) {
+            resetBook();
+            const buf = await file.arrayBuffer();
+            currentBook.originalBuffer = buf;
+            // Use clone for pdf.js to prevent detaching originalBuffer
+            const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+            const info = (await pdf.getMetadata().catch(() => ({ info: {} }))).info || {};
+            currentBook.title = info.Title?.trim() || file.name.replace(/\.pdf$/i, '');
+            currentBook.author = info.Author?.trim() || 'Неизвестный автор';
+            currentBook.lang = '';
+
+            // Render p.1 as cover
+            try {
+                const page = await pdf.getPage(1);
+                const vp = page.getViewport({ scale: 1.5 });
+                const cv = document.createElement('canvas');
+                cv.width = vp.width;
+                cv.height = vp.height;
+                await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+                const b64 = cv.toDataURL('image/jpeg', 0.8).split(',')[1];
+                currentBook.cover = { data: await optimizeCover(b64, 'image/jpeg'), mime: 'image/jpeg' };
+            } catch (e) { }
+            // Text extraction (v22)
+            try {
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(item => item.str).join(' ') + '\n\n';
+                    if (i % 20 === 0) status(`⏳ Текст PDF: ${i}/${pdf.numPages}`, 'inf');
+                }
+                currentBook.bodyText = fullText;
+            } catch (e) { }
+        }
+
+        // ════════════════════════════════════════════════
+        //  IMAGE OPTIMIZATION
+        // ════════════════════════════════════════════════
+        function optimizeCover(b64, mime) {
+            return new Promise(resolve => {
+                if (!b64) { resolve(null); return; }
+                const cleanB64 = b64.replace(/\s/g, ''); // Ensure no whitespaces
+                const img = new Image();
+                img.onload = () => {
+                    const MAX = 500;
+                    if (Math.max(img.width, img.height) <= MAX) { resolve(cleanB64); return; }
+                    const sc = MAX / Math.max(img.width, img.height);
+                    const cv = document.createElement('canvas');
+                    cv.width = Math.round(img.width * sc);
+                    cv.height = Math.round(img.height * sc);
+                    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+                    resolve(cv.toDataURL(mime || 'image/jpeg', 0.92).split(',')[1]);
+                };
+                img.onerror = () => resolve(cleanB64);
+                img.src = `data:${mime};base64,${cleanB64}`;
+            });
+        }
+
+        // ════════════════════════════════════════════════
+        //  UI UPDATES
+        // ════════════════════════════════════════════════
+
+        function downloadCover() {
+            if (!currentBook || !currentBook.cover || !currentBook.cover.data) {
+                status('❌ Обложка не найдена', 'err');
+                return;
+            }
+            const b = currentBook;
+            const name = transliterate(`${b.author} - ${b.title}`).replace(/\s+/g, '_') + '.jpg';
+
+            if (window.AndroidBridge && AndroidBridge.saveFile) {
+                try {
+                    AndroidBridge.saveFile(b.cover.data, name, 'image/jpeg');
+                    status('✅ Обложка сохранена: ' + name, 'ok');
+                } catch (e) { }
+            } else {
+                const link = document.createElement('a');
+                link.href = `data:${b.cover.mime || 'image/jpeg'};base64,${b.cover.data}`;
+                link.download = name;
+                link.click();
+                status('✅ Скачивание начато', 'ok');
+            }
+        }
+
+        function updateUI() {
+            updateBadge();
+            updateBookList();
+            updateCoversGrid();
+            // Select newest book if none selected or after upload
+            if (books.length > 0) {
+                selectBook(books.length - 1);
+            }
+            regenerateBB();
+            updateSeriesCard();
+        }
+
+        function selectBook(index) {
+            if (index < 0 || index >= books.length) return;
+
+            // 1. Remove selection from all
+            document.querySelectorAll('.book-item, .cover-thumb').forEach(el => el.classList.remove('selected'));
+
+            // 2. Highlight new elements
+            document.querySelectorAll(`.book-item[data-index="${index}"], .cover-thumb[data-index="${index}"]`)
+                .forEach(el => el.classList.add('selected'));
+
+            // 3. Copy data
+            currentBook = { ...books[index] };
+
+            // 4. Update details panel
+            updateCurrentBookUI();
+        }
+
+        function updateCurrentBookUI() {
+            if (!currentBook) return;
+            document.getElementById('infoCard').style.display = 'block';
+            document.getElementById('btnDownloadCover').style.display = (currentBook.cover && currentBook.cover.data) ? 'inline-block' : 'none';
+            document.getElementById('iAuthor').textContent = currentBook.author || '—';
+            document.getElementById('iTitle').textContent = currentBook.title || '—';
+            document.getElementById('iSeries').textContent = currentBook.series || '—';
+            document.getElementById('iNum').textContent = currentBook.seriesNum || '—';
+            document.getElementById('iGenre').textContent = currentBook.genre || '—';
+            document.getElementById('iLang').textContent = currentBook.lang || '—';
+
+            const cp = document.getElementById('coverPreview');
+            if (currentBook.cover && currentBook.cover.data) {
+                cp.innerHTML = `<img src="data:${currentBook.cover.mime};base64,${currentBook.cover.data}" alt="Обложка">`;
+            } else {
+                cp.innerHTML = '<div class="no-cover">Нет обложки</div>';
+            }
+
+            if (currentBook.annotation) {
+                document.getElementById('annotCard').style.display = 'block';
+                let annotText = currentBook.annotation;
+                if (books.length > 1) {
+                    annotText = books.map((b, idx) => `${idx + 1}. [b]${b.title || 'Без названия'}[/b]\n${b.annotation || 'Добавить аннотацию'}`).join('\n\n');
+                }
+                document.getElementById('iAnnotation').textContent = annotText;
+            } else {
+                document.getElementById('annotCard').style.display = 'none';
+            }
+
+            if (currentBook.uploader) {
+                document.getElementById('rowUploader').style.display = 'flex';
+                document.getElementById('iUploader').textContent = currentBook.uploader;
+            } else {
+                document.getElementById('rowUploader').style.display = 'none';
+            }
+            if (currentBook.downloads > 0) {
+                document.getElementById('rowDownloads').style.display = 'flex';
+                document.getElementById('iDownloads').textContent = currentBook.downloads;
+            } else {
+                document.getElementById('rowDownloads').style.display = 'none';
+            }
+            if (currentBook.originalPostUrl) {
+                document.getElementById('rowSourceLink').style.display = 'flex';
+                document.getElementById('iSourceLink').innerHTML = `<a href="${currentBook.originalPostUrl}" target="_blank" style="color:#0056b3;">Посмотреть на 4PDA</a>`;
+            } else {
+                document.getElementById('rowSourceLink').style.display = 'none';
+            }
+        }
+
+        function updateBookList() {
+            const el = document.getElementById('bookList');
+            document.getElementById('bookCountLabel').textContent = books.length ? `(${books.length})` : '';
+            if (!books.length) {
+                el.innerHTML = '<p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Загрузите книги</p>';
+                return;
+            }
+            el.innerHTML = books.map((b, i) => `
+        <div class="book-item" data-index="${i}" onclick="selectBook(${i})">
+            <div class="book-text">
+                <div class="book-title">${esc(b.title)}</div>
+                <div class="book-author">${esc(b.author)}${b.seriesNum ? ' · №' + b.seriesNum : ''}</div>
+            </div>
+            <div class="book-controls">
+                <button class="btn-sm" onclick="event.stopPropagation(); moveUp(${i})" ${i === 0 ? 'disabled' : ''}>↑</button>
+                <button class="btn-sm" onclick="event.stopPropagation(); moveDn(${i})" ${i === books.length - 1 ? 'disabled' : ''}>↓</button>
+                <button class="btn-sm del" onclick="event.stopPropagation(); removeBook(${i})">✕</button>
+            </div>
+        </div>`).join('');
+        }
+
+        function updateCoversGrid() {
+            const el = document.getElementById('coversGrid');
+            if (!el) return;
+            if (!books.length) {
+                el.innerHTML = '';
+                return;
+            }
+            el.innerHTML = books.map((b, i) => {
+                if (b.cover && b.cover.data) {
+                    return `<img class="cover-thumb" data-index="${i}" src="data:${b.cover.mime};base64,${b.cover.data}" onclick="selectBook(${i})">`;
+                } else {
+                    return `<div class="cover-thumb no-cover-thumb" data-index="${i}" onclick="selectBook(${i})">Нет обложки</div>`;
+                }
+            }).join('');
+        }
+
+        function updateSeriesCard() {
+            if (!books.length) { document.getElementById('seriesCard').style.display = 'none'; return; }
+            document.getElementById('seriesCard').style.display = 'block';
+            const b = books[0];
+            document.getElementById('sAuthor').textContent = b.author || '—';
+            document.getElementById('sSeries').textContent = b.series || '—';
+            document.getElementById('sCount').textContent = books.length;
+            const genres = [...new Set(books.map(x => x.genre).filter(Boolean))].join(', ');
+            document.getElementById('sGenre').textContent = genres || '—';
+        }
+
+        // ════════════════════════════════════════════════
+        //  BOOK MANAGEMENT
+        // ════════════════════════════════════════════════
+        function moveUp(i) {
+            if (i > 0) {
+                [books[i - 1], books[i]] = [books[i], books[i - 1]];
+                updateBookList();
+                updateSeriesCard();
+                regenerateBB();
+            }
+        }
+
+        function moveDn(i) {
+            if (i < books.length - 1) {
+                [books[i], books[i + 1]] = [books[i + 1], books[i]];
+                updateBookList();
+                updateSeriesCard();
+                regenerateBB();
+            }
+        }
+        function updateBadge() {
+            const b = document.getElementById('bookBadge'); if (b) b.textContent = books.length;
+        }
+
+        function removeBook(index) {
+            books.splice(index, 1);
+            if (books.length > 0) {
+                const newIndex = Math.min(index, books.length - 1);
+                updateUI();
+                selectBook(newIndex);
+            } else {
+                resetAll();
+            }
+        }
+        function resetAll() {
+            books = []; currentBook = null; updateUI(); document.getElementById('bbArea').value = ''; document.getElementById('infoCard').style.display = 'none'; document.getElementById('annotCard').style.display = 'none'; document.getElementById('seriesCard').style.display = 'none'; document.getElementById('fileInput').value = ''; document.getElementById('searchResultsSection').classList.remove('show'); document.getElementById('searchQueryInput').value = '';
+            document.getElementById('searchResultsSection').classList.remove('show');
+            document.getElementById('searchQueryInput').value = '';
+            document.getElementById('postUrlInput').value = '';
+            status('Данные очищены', 'inf');
+        }
+
+        window.onPublishProgress = function (step, msg) {
+            // silent progress in background, just status bar
+            if (step === 'complete') {
+                status('✅ Готово к публикации. Проверьте форму на форуме.', 'ok');
+            } else {
+                status(`⏳ Публикация... (${step})`, 'inf');
+            }
+        };
+
+        // ════════════════════════════════════════════════
+        //  PARSING FORUM POST (LINK GRABBER)
+        // ════════════════════════════════════════════════
+        function parsePostUrl() {
+            const url = document.getElementById('postUrlInput').value.trim();
+            if (!url) {
+                status("Введите ссылку на пост!", "err");
+                return;
+            }
+            if (window.AndroidBridge && AndroidBridge.parseForumPost) {
+                status("⏳ Обработка...", "inf");
+                AndroidBridge.parseForumPost(url);
+            } else {
+                status("AndroidBridge недоступен!", "err");
+            }
+        }
+
+        window.onPostParsed = function (jsonStr) {
+            try {
+                const data = JSON.parse(jsonStr);
+                status("✅ Пост успешно разобран!", "ok");
+
+                // Накатываем скачивания и автора
+                const applyPostData = () => {
+                    if (books.length > 0) {
+                        let author = data.authorName || '';
+                        if (data.authorId) {
+                            author = `[url=https://4pda.to/forum/index.php?showuser=${data.authorId}]${author}[/url]`;
+                        }
+
+                        books.forEach(b => {
+                            b.downloads = data.totalDownloads || 0;
+                            b.uploader = author;
+                            b.uploaderId = data.authorId || '';
+                            b.originalPostUrl = document.getElementById('postUrlInput').value.trim();
+                        });
+
+                        updateBookList();
+                        updateCurrentBookUI();
+                    }
+                };
+
+                if (data.fileBase64) {
+                    status("⏳ Распаковка файла из поста...", "inf");
+                    // Decode base64 to File
+                    const byteCharacters = atob(data.fileBase64);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray]);
+                    const file = new File([blob], data.fileName || "downloaded.fb2");
+
+                    // Process file
+                    handleFiles([file]).then((success) => {
+                        applyPostData();
+                        if (success) {
+                            status("✅ Пост и файл успешно разобраны!", "ok");
+                        }
+                        document.getElementById('section-bbcode').style.display = 'block';
+                        regenerateBB();
+                    }).catch(e => {
+                        status("❌ Ошибка обработки файла: " + e.message, "err");
+                    });
+                    return; // Wait for handleFiles to complete
+                } else {
+                    if (data.downloadError) {
+                        status("❌ Ссылка найдена, но ошибка скачивания: " + data.downloadError, "err");
+                    } else if (!data.bookFileUrl) {
+                        status("❌ Книга в посте не найдена (нет ссылки)", "err");
+                    } else {
+                        status("❌ Неизвестная ошибка: файл не получен", "err");
+                    }
+
+                    // Если файла в посте нет, просто обновляем текущую книгу (метаданные)
+                    if (books.length > 0) {
+                        applyPostData();
+                    } else {
+                        // Иначе инициализируем currentBook
+                        if (!currentBook) currentBook = { genres: [] };
+                        currentBook.title = data.topicTitle || currentBook.title;
+                        currentBook.downloads = data.totalDownloads || 0;
+                        let author = data.authorName || '';
+                        if (data.authorId) {
+                            author = `[url=https://4pda.to/forum/index.php?showuser=${data.authorId}]${author}[/url]`;
+                        }
+                        currentBook.uploader = author;
+                        currentBook.uploaderId = data.authorId || '';
+                        currentBook.originalPostUrl = document.getElementById('postUrlInput').value.trim();
+
+                        updateInfoPanel();
+                    }
+
+                    document.getElementById('section-bbcode').style.display = 'block';
+
+                    if (data.totalDownloads > 0 || data.authorName) {
+                        // status(..., "ok");
+                    }
+
+                    regenerateBB();
+                }
+            } catch (e) {
+                status("❌ Ошибка обработки данных поста", "err");
+            }
+        }
+
+        window.onPostParseError = function (errorMsg) {
+            status("❌ Ошибка парсинга: " + errorMsg, "err");
+        }
+
+        // ════════════════════════════════════════════════
+        //  BB-CODE
+        // ════════════════════════════════════════════════
+        function regenerateBB() {
+            if (!books.length) { document.getElementById('bbArea').value = ''; return; }
+
+            let finalBB = '';
+
+            // Rule: Red Bold Author
+            const b0 = books[0];
+            finalBB += `[COLOR=red][B]${b0.author || 'Неизвестный автор'}[/B][/COLOR]\n`;
+
+            // Rule: Blue Bold Title/Series
+            let titleLine = '';
+            if (books.length === 1) {
+                titleLine = b0.title || 'Без названия';
+                if (b0.series) titleLine += `. ${b0.series}${b0.seriesNum ? ' ' + b0.seriesNum : ''}`;
+            } else {
+                // If multiple books (series)
+                const seriesName = b0.series || b0.title || 'Серия';
+                const nums = books.map(b => parseInt(b.seriesNum)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+                const range = nums.length > 1 ? ` ${nums[0]}-${nums[nums.length - 1]}` : (nums.length === 1 ? ` ${nums[0]}` : '');
+                titleLine = `${seriesName}. ${seriesName}${range}`;
+            }
+            finalBB += `[B][COLOR=blue]${titleLine}[/COLOR][/B]\n\n`;
+
+
+            // Rule: Spoiler Annotation
+            const annotLabel = books.length > 1 ? 'Аннотации' : 'Аннотация';
+            finalBB += `[SPOILER=${annotLabel}]\n`;
+            if (books.length === 1) {
+                finalBB += (b0.annotation || 'Добавить аннотацию').replace(/[\r\n]+/g, ' ');
+            } else {
+                finalBB += books.map((b, idx) => {
+                    const cleanAnnot = (b.annotation || 'Добавить аннотацию').replace(/[\r\n]+/g, ' ');
+                    return `${idx + 1}. [b]${b.title || 'Без названия'}[/b]\n${cleanAnnot}`;
+                }).join('\n\n') + '\n';
+            }
+            finalBB += `\n[/SPOILER]\n\n`;
+
+            finalBB += `[url="ссылка на Книгохранилище"][i][b]Скачать из Книгохранилища[/b][/i][/url]`;
+
+            document.getElementById('bbArea').value = finalBB;
+
+            // Auto-copy if enabled (placeholder for future preference, but let's do it if bridge is there)
+            if (window.AndroidBridge && books.length > 0) {
+                // AndroidBridge.copyToClipboard(finalBB); // Don't annoy user TOO much unless they ask
+            }
+        }
+
+        function copyBB() {
+            const bb = document.getElementById('bbArea').value;
+            if (!bb) { status('❌ BB-код пуст', 'err'); return; }
+            // Try AndroidBridge first, fallback to clipboard API
+            if (window.AndroidBridge) {
+                AndroidBridge.copyToClipboard(bb);
+            } else {
+                navigator.clipboard?.writeText(bb).then(() => status('✅ Скопировано!', 'ok'));
+            }
+            status('✅ BB-код скопирован!', 'ok');
+        }
+
+        window.onBookPublished = function (url) {
+            let bb = document.getElementById('bbArea').value;
+            if (bb.includes('"ссылка на Книгохранилище"')) {
+                bb = bb.replace('"ссылка на Книгохранилище"', url);
+                document.getElementById('bbArea').value = bb;
+                copyBB(); // Automatically copy the updated code
+                status('✅ Книга опубликована! Ссылка добавлена в BB-код.', 'ok');
+            }
+        };
+
+        async function sendToForum() {
+            const bb = document.getElementById('bbArea').value;
+            if (!bb) { status('❌ Сначала загрузите книги', 'err'); return; }
+            if (!authState.loggedIn) {
+                status('❌ Сначала войдите на 4PDA', 'err');
+                openLoginPage();
+                return;
+            }
+
+            // Build topic title and structured data
+            let topicTitle = '';
+            let bookData = {
+                bbcode: bb,
+                topicTitle: '',
+                author: '',
+                title: '',
+                series: '',
+                genre: '',
+                annotation: ''
+            };
+
+            if (books.length > 0) {
+                const b0 = books[0];
+                const author = b0.author || 'Неизвестный автор';
+                bookData.author = author;
+
+                // Title with range for multi-books
+                if (books.length > 1) {
+                    const nums = books.map(b => parseInt(b.seriesNum)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+                    const range = nums.length > 1 ? ` ${nums[0]}-${nums[nums.length - 1]}` : (nums.length === 1 ? ` ${nums[0]}` : '');
+                    bookData.title = (b0.title || 'Книга') + range;
+                    bookData.seriesBooks = books.map(b => b.title || 'Без названия').join('\n');
+                } else {
+                    bookData.title = b0.title || 'Без названия';
+                    bookData.seriesBooks = '';
+                }
+
+                bookData.genre = [...new Set(books.map(x => x.genre).filter(Boolean))].join(', ');
+                bookData.year = b0.year || '';
+
+                // Combined annotation list for multi-books
+                if (books.length > 1) {
+                    bookData.annotation = books.map((b, idx) => {
+                        const cleanAnnot = (b.annotation || 'Добавить аннотацию').replace(/[\r\n]+/g, ' ');
+                        return `${idx + 1}. [b]${b.title || 'Без названия'}[/b]\n${cleanAnnot}`;
+                    }).join('\n\n');
+                } else {
+                    bookData.annotation = b0.annotation || '';
+                }
+
+                bookData.lang = b0.lang || 'ru';
+                bookData.publisher = b0.publisher || '';
+                bookData.format = b0.format || '';
+                bookData.quality = b0.quality || '';
+                bookData.pages = b0.pages || '';
+                bookData.webLink = b0.webLink || '';
+                bookData.authors = b0.author || '';
+                // Collect all unique covers for sequential upload
+                bookData.coverFiles = [];
+                const seenCovers = new Set();
+                books.forEach(b => {
+                    if (b.cover && b.cover.data && !seenCovers.has(b.cover.data)) {
+                        seenCovers.add(b.cover.data);
+                        bookData.coverFiles.push({
+                            data: b.cover.data,
+                            mime: b.cover.mime || 'image/jpeg',
+                            name: `cover_${transliterate(b.title || 'book').substring(0, 20)}.jpg`
+                        });
+                    }
+                });
+
+                // Keep backward compatibility for single cover
+                if (bookData.coverFiles.length > 0) {
+                    bookData.coverImageBase64 = bookData.coverFiles[0].data;
+                    bookData.coverMime = bookData.coverFiles[0].mime;
+                }
+
+                bookData.downloads = b0.downloads || currentBook?.downloads || 0;
+                // Поле [15] формы ожидает URL-ссылку на профиль релизера
+                const uplId = b0.uploaderId || currentBook?.uploaderId || '';
+                if (uplId) {
+                    bookData.uploader = `https://4pda.to/forum/index.php?showuser=${uplId}`;
+                } else {
+                    bookData.uploader = b0.uploader || currentBook?.uploader || '';
+                }
+                bookData.originalPostUrl = b0.originalPostUrl || currentBook?.originalPostUrl || '';
+
+                // Stage each book file individually via bridge (avoids JS bridge size limit)
+                for (const b of books) {
+                    try {
+                        const fb2Content = b.originalFB2 || generateFB2(b);
+                        const zip = new JSZip();
+                        const baseName = makeFilename(b);
+                        zip.file(baseName + '.fb2', fb2Content);
+                        const zipBase64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
+                        const fileName = transliterate(baseName) + '.fb2.zip';
+
+                        if (window.AndroidBridge && AndroidBridge.stageBookFile) {
+                            AndroidBridge.stageBookFile(fileName, zipBase64, 'application/octet-stream');
+                        }
+                    } catch (err) {
+                        console.error('Ошибка упаковки отдельной книги:', err);
+                    }
+                }
+
+                if (b0.series) {
+                    const nums = books.map(b => parseInt(b.seriesNum)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+                    const range = nums.length > 1 ? ` ${nums[0]}-${nums[nums.length - 1]}` : (nums.length === 1 ? ` ${nums[0]}` : '');
+                    topicTitle = `${author} - ${b0.series}${range}`;
+                    bookData.series = `${b0.series}${range}`;
+                } else {
+                    topicTitle = `${author} - ${bookData.title}`;
+                }
+                bookData.topicTitle = topicTitle;
+            }
+
+            // Send metadata (without large base64 book data) via bridge
+            if (window.AndroidBridge && AndroidBridge.sendBookDataToForum) {
+                AndroidBridge.sendBookDataToForum(JSON.stringify(bookData));
+            } else if (window.AndroidBridge && AndroidBridge.sendBBCodeToForumWithTitle) {
+                AndroidBridge.sendBBCodeToForumWithTitle(bb, topicTitle);
+            } else if (window.AndroidBridge && AndroidBridge.sendBBCodeToForum) {
+                AndroidBridge.sendBBCodeToForum(bb);
+            } else {
+                navigator.clipboard?.writeText(bb).then(() => {
+                    window.open('https://4pda.to/forum/index.php?showforum=18', '_blank');
+                });
+            }
+        }
+
+        function returnToForum() {
+            if (window.AndroidBridge && AndroidBridge.returnToForum) {
+                AndroidBridge.returnToForum();
+            } else {
+                status('❌ Недоступно в браузере. Только в приложении Android.', 'warn');
+            }
+        }
+
+        function searchOnForum(q) {
+            let query = q;
+            if (!query && currentBook) {
+                const author = currentBook.author || '';
+                const surname = author.split(/[\s,]+/)[0] || '';
+                let titleActual = currentBook.title || '';
+
+                // Strip series indicators and EVERYTHING after them (ultra aggressive)
+                titleActual = titleActual.replace(/(Часть|Ч\.|Книга|Кн\.|Том|Т\.|Кн|Ч|Т)\s*\d+.*$/gi, '');
+
+                // Strip digits and trailing junk
+                titleActual = titleActual.replace(/\d+/g, '');
+                titleActual = titleActual.replace(/[:.,\-—\s]+$/, '').trim();
+
+                query = (surname + ' ' + titleActual).trim();
+            } else if (query) {
+                // If query was passed (e.g. from q), still apply cleaning to be safe
+                query = query.replace(/(Часть|Ч\.|Книга|Кн\.|Том|Т\.|Кн|Ч|Т)\s*\d+.*$/gi, '');
+                query = query.replace(/\d+/g, '');
+                query = query.replace(/[:.,\-—\s]+$/, '').trim();
+            }
+
+            if (!query) { status('❌ Введите название для поиска', 'err'); return; }
+
+            // Sync search input field
+            const qInput = document.getElementById('searchQueryInput');
+            if (qInput && !qInput.value) qInput.value = query;
+            status('🔍 Поиск: ' + query + '…', 'inf');
+            if (window.AndroidBridge && AndroidBridge.searchOnForum) {
+                AndroidBridge.searchOnForum(query);
+            } else {
+                window.open('https://4pda.to/forum/index.php?act=search&source=all&result=topics&no_top=1&forums%5B%5D=18&forums%5B%5D=218&query=' + encodeURIComponent(query), '_blank');
+            }
+        }
+
+        // ════════════════════════════════════════════════
+        //  DOWNLOAD ZIP
+        // ════════════════════════════════════════════════
+        async function downloadSingleBook(idx) {
+            const b = books[idx];
+            if (!b) return;
+            status('⏳ Подготовка ' + (b.title || 'книги') + '...', 'inf');
+            try {
+                const zip = new JSZip();
+                let fb2Content = (b.originalFB2 || generateFB2(b));
+                const baseName = transliterate(makeFilename(b));
+                zip.file(baseName + '.fb2', fb2Content);
+                const base64 = await zip.generateAsync({ type: "base64", compression: "DEFLATE" });
+                const finalName = baseName + '.fb2.zip';
+
+                if (window.AndroidBridge && AndroidBridge.saveFile) {
+                    AndroidBridge.saveFile(base64, finalName, 'application/zip');
+                    status('✅ ' + finalName + ' отправлен', 'ok');
+                } else {
+                    const link = document.createElement('a');
+                    link.href = 'data:application/zip;base64,' + base64;
+                    link.download = finalName;
+                    link.click();
+                    status('✅ Скачано: ' + finalName, 'ok');
+                }
+            } catch (e) {
+                console.error('Download error for ' + b.title + ': ' + e);
+                status('❌ Ошибка скачивания', 'err');
+            }
+        }
+
+        async function downloadZip() {
+            if (!books.length) { status('❌ Нет книг', 'err'); return; }
+            status('🚀 Запускаю массовую загрузку...', 'inf');
+            for (let i = 0; i < books.length; i++) {
+                await downloadSingleBook(i);
+                await new Promise(r => setTimeout(r, 600)); // Delay to prevent bridge overlapping
+            }
+            status('✅ Завершена загрузка ' + books.length + ' книг', 'ok');
+        }
+
+        // ════════════════════════════════════════════════
+        //  FB2 GENERATION
+        // ════════════════════════════════════════════════
+        function generateFB2(d, bodyText) {
+            const x = t => (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const authors = (d.author || '').split(',').map(n => n.trim()).filter(Boolean);
+            const authorXML = authors.map(n => {
+                const p = n.split(' ');
+                return p.length >= 2
+                    ? `<author><first-name>${x(p.slice(1).join(' '))}</first-name><last-name>${x(p[0])}</last-name></author>`
+                    : `<author><last-name>${x(n)}</last-name></author>`;
+            }).join('\n') || '<author><last-name>Неизвестный автор</last-name></author>';
+
+            const genreXML = d.genreCode ? `<genre>${x(d.genreCode)}</genre>` : '';
+            const seqXML = d.series ? `<sequence name="${x(d.series)}"${d.seriesNum ? ` number="${x(d.seriesNum)}"` : ''}/>` : '';
+            const annotXML = d.annotation ? `<annotation><p>${x(d.annotation)}</p></annotation>` : '';
+            let coverXML = '', binaryXML = '';
+            if (d.cover?.data) {
+                coverXML = `<coverpage><image l:href="#cover.jpg"/></coverpage>\n`;
+                binaryXML = `\n<binary id="cover.jpg" content-type="${d.cover.mime || 'image/jpeg'}">${d.cover.data}</binary>`;
+            }
+            const bodyTextActual = bodyText || d.bodyText || '';
+            const body = bodyTextActual ? bodyTextActual.split(/\n\s*\n/).filter(p => p.trim()).map(p => `<p>${x(p.trim())}</p>`).join('\n') : '<p></p>';
+            return `<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description><title-info>
+${genreXML}
+${authorXML}
+<book-title>${x(d.title || 'Без названия')}</book-title>
+${annotXML}${seqXML}${coverXML}<lang>${x(d.lang || 'ru')}</lang>
+</title-info></description>
+<body><section>${body}</section></body>${binaryXML}
+</FictionBook>`;
+        }
+
+        // ════════════════════════════════════════════════
+        function makeFilename(b) {
+            const p = [];
+            if (b.author) {
+                const parts = b.author.split(/[\s,]+/);
+                if (parts.length > 0) p.push(parts[0]);
+            }
+            if (b.title) p.push(b.title);
+            if (b.series) p.push(b.series);
+            return (p.join('_') || 'book').substring(0, 150);
+        }
+
+        function transliterate(t) {
+            const map = {
+                'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo', 'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U', 'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch', 'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+            };
+            return t.split('').map(c => map[c] !== undefined ? map[c] : c).join('')
+                .replace(/[^\w.\-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+        }
+
+        function copy(field) {
+            if (!currentBook) return;
+            let v = currentBook[field] || '';
+            if (field === 'annotation' && books.length > 1) {
+                v = books.map((b, idx) => {
+                    const cleanAnnot = (b.annotation || 'Добавить аннотацию').replace(/[\r\n]+/g, ' ');
+                    return `${idx + 1}. [b]${b.title || 'Без названия'}[/b]\n${cleanAnnot}`;
+                }).join('\n\n');
+            }
+            if (window.AndroidBridge) AndroidBridge.copyToClipboard(v);
+            else navigator.clipboard?.writeText(v);
+            status(`✅ ${field} скопировано`, 'ok');
+        }
+
+        function esc(t) {
+            const d = document.createElement('div'); d.textContent = t; return d.innerHTML;
+        }
+
+
+
+        // ════════════════════════════════════════════════
+        //  INTEGRATED SEARCH (v30)
+        // ════════════════════════════════════════════════
+        function norm(s) {
+            return (s || '')
+                .toLowerCase()
+                .replace(/ё/g, 'е')
+                .replace(/[‐–—―-]/g, '-')
+                .replace(/[^a-zа-я0-9\- _]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function tokenize(s) {
+            return norm(s).split(' ').filter(t => t.length >= 2);
+        }
+
+        function buildAuthorTokens(authorStr) {
+            const set = new Set();
+            const authors = (authorStr || '').split(/[\s,]+/).filter(Boolean);
+            authors.forEach(n => {
+                const nn = norm(n);
+                if (nn.length >= 2) set.add(nn);
+            });
+            return Array.from(set);
+        }
+
+        function scoreTopic(topicTitle, authorTokens, titleTokens, seriesTokens) {
+            const t = ` ${norm(topicTitle)} `;
+            let score = 0;
+
+            for (const tok of titleTokens) {
+                if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) score += 3;
+                else if (t.includes(tok)) score += 1;
+            }
+
+            let seriesHit = false;
+            for (const tok of seriesTokens) {
+                if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) { score += 3; seriesHit = true; }
+                else if (t.includes(tok)) { score += 1; seriesHit = true; }
+            }
+
+            for (const tok of authorTokens) {
+                if (t.includes(` ${tok} `) || t.includes(` ${tok}-`) || t.includes(`-${tok} `)) score += 2;
+                else if (t.includes(tok)) score += 1;
+            }
+
+            if (authorTokens.length > 0 && (titleTokens.length > 0 || seriesTokens.length > 0)) score += 2;
+            if (seriesHit) score += 2;
+
+            return score;
+        }
+
+        // This will be called from Android
+        window.onSearchFinished = function (resultsJson) {
+            try {
+                const rawResults = typeof resultsJson === 'string' ? JSON.parse(resultsJson) : resultsJson;
+                if (!rawResults || !rawResults.length) {
+                    status('🔍 Темы не найдены', 'inf');
+                    renderSearchResults([]);
+                    return;
+                }
+
+                if (!currentBook) return;
+
+                const authorTokens = buildAuthorTokens(currentBook.author);
+                const titleTokens = tokenize(currentBook.title);
+                const seriesTokens = currentBook.series ? tokenize(currentBook.series) : [];
+
+                const scored = rawResults.map(r => ({
+                    ...r,
+                    score: scoreTopic(r.title, authorTokens, titleTokens, seriesTokens)
+                }))
+                    .filter(r => r.score > 0)
+                    .sort((a, b) => b.score - a.score);
+
+                renderSearchResults(scored);
+                status('✅ Найдено тем: ' + scored.length, 'ok');
+            } catch (e) {
+                console.error('Search finish error: ' + e);
+            }
+        };
+
+        function renderSearchResults(results) {
+            const container = document.getElementById('searchResultsContainer');
+            const section = document.getElementById('searchResultsSection');
+            container.innerHTML = '';
+
+            if (results.length > 0) {
+                section.classList.add('show');
+                setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                results.slice(0, 5).forEach(r => {
+                    const card = document.createElement('div');
+                    card.className = 'search-result-card';
+                    card.innerHTML = `
+                        <div class="search-result-info">
+                            <div class="search-result-title">${esc(r.title)}</div>
+                            <div class="search-result-score">Совпадение: ${r.score}</div>
+                        </div>
+                        <a href="javascript:void(0)" onclick="openForumTopic('${esc(r.url)}')" class="search-result-btn">Открыть</a>
+                    `;
+                    container.appendChild(card);
+                });
+            } else {
+                section.classList.remove('show');
+            }
+        }
+
+        // Open forum topic via bridge or fallback
+        function openForumTopic(url) {
+            if (window.AndroidBridge && AndroidBridge.openForumUrl) {
+                AndroidBridge.openForumUrl(url);
+            } else {
+                window.open(url, '_blank');
+            }
+        }
+
+        function status(msg, type) {
+            const el = document.getElementById('status');
+            el.textContent = msg;
+            el.className = `status show ${type || 'inf'}`;
+            clearTimeout(el._t);
+            el._t = setTimeout(() => el.classList.remove('show'), 3500);
+
+            // Log action
+            const logEl = document.getElementById('actionLog');
+            if (logEl) {
+                const time = new Date().toLocaleTimeString('ru-RU', { hour12: false });
+                const div = document.createElement('div');
+                div.style.marginBottom = '4px';
+                let color = '#333';
+                if (type === 'err') color = '#dc3545';
+                if (type === 'ok') color = '#28a745';
+                div.style.color = color;
+                div.textContent = `[${time}] ${msg}`;
+                logEl.appendChild(div);
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+        }
+    </script>
+
+    <!-- ═══ ЖУРНАЛ ДЕЙСТВИЙ ═══ -->
+    <div class="section-header">📜 Журнал действий</div>
+    <div class="card" style="margin-bottom: 40px;">
+        <div id="actionLog"
+            style="height: 150px; overflow-y: auto; font-family: monospace; font-size: 11px; background: #f9f9f9; padding: 8px; border: 1px solid #ccd0d5; border-radius: 6px;">
+            <div style="color: #666; font-style: italic;">Система инициализирована...</div>
+        </div>
+    </div>
+</body>
+
+</html>

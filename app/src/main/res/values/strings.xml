@@ -1,0 +1,65 @@
+<resources>
+    <string name="app_name">Парсер книг 2</string>
+    <string-array name="genres_array">
+        <item>Фантастика</item>
+        <item>Альтернативная история</item>
+        <item>Боевая фантастика</item>
+        <item>Детективная Фантастика</item>
+        <item>Киберпанк</item>
+        <item>Космическая фантастика</item>
+        <item>ЛитРПГ</item>
+        <item>Научная фантастика</item>
+        <item>Попаданцы</item>
+        <item>Постапокалипсис</item>
+        <item>Социально-психологическая фантастика</item>
+        <item>Хроноопера</item>
+        <item>Юмористическая фантастика</item>
+        <item>Фэнтези</item>
+        <item>Боевик</item>
+        <item>Детектив</item>
+        <item>Криминал</item>
+        <item>Мистика и ужасы</item>
+        <item>Приключения</item>
+        <item>Триллеры</item>
+        <item>История</item>
+        <item>Контркультура</item>
+        <item>Политика</item>
+        <item>Культурология</item>
+        <item>Публицистика</item>
+        <item>Критика</item>
+        <item>Документальная литература</item>
+        <item>Философия</item>
+        <item>Психология</item>
+        <item>Бизнес литература</item>
+        <item>Юриспруденция</item>
+        <item>Спорт</item>
+        <item>Юмор</item>
+        <item>Романы и повести</item>
+        <item>Драматургия и комедия</item>
+        <item>Мемуары и биографии</item>
+        <item>Сказки, мифы и легенды</item>
+        <item>О войне</item>
+        <item>Поэзия</item>
+        <item>Природа и животные</item>
+        <item>Путешествия и география</item>
+        <item>Дом и семья</item>
+        <item>Детская литература</item>
+        <item>Домашние животные</item>
+        <item>Кулинария</item>
+        <item>Журналы и комиксы</item>
+        <item>Медицина и здоровье</item>
+        <item>Религия и эзотерика</item>
+        <item>Сад и огород</item>
+        <item>Сделай сам</item>
+        <item>Хобби и досуг</item>
+        <item>Наука и образование</item>
+        <item>Компьютерная литература</item>
+        <item>Справочная литература</item>
+        <item>Технические науки</item>
+        <item>Языки и словари</item>
+    </string-array>
+    <string name="author_label">Автор(ы)*</string>
+    <string name="book_title_label">Название книги*</string>
+    <string name="genre_label">Жанр книги* (выберите от 1 до 3)</string>
+    <string name="annotation_label">Аннотация*</string>
+</resources>

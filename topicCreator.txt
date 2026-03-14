@@ -1,0 +1,149 @@
+// src/core/topicCreator.ts
+
+import { Browser, Page } from 'playwright';
+import * as fs from 'fs/promises';
+import path from 'path';
+import { BookProcessingResult } from '../types/book.types.js';
+import { logger } from '../utils/logger.js';
+
+import { pdaGenres as GENRE_MAP } from './genres.js';
+
+function formatAuthors(authors: BookProcessingResult['metadata']['authors']): string {
+  if (!authors || authors.length === 0) return 'Автор не указан';
+  return authors
+    .map((a) => `${a.lastName || ''} ${a.firstName || ''} ${a.middleName || ''}`.trim())
+    .join(', ');
+}
+
+export async function fillTopicForm(
+  browser: Browser,
+  bookData: BookProcessingResult,
+): Promise<{ page: Page; screenshotPath: string }> {
+  const createTopicUrl = 'https://4pda.to/forum/index.php?act=zfw&f=218';
+
+  const context = await browser.newContext();
+  const rawCookies = JSON.parse(await fs.readFile('cookies.json', 'utf-8'));
+  const validSameSiteValues = ['Strict', 'Lax', 'None'];
+  const cleanedCookies = rawCookies.map((cookie: any) =>
+    cookie.sameSite && !validSameSiteValues.includes(cookie.sameSite)
+      ? { ...cookie, sameSite: 'Lax' }
+      : cookie,
+  );
+  await context.addCookies(cleanedCookies);
+
+  const page = await context.newPage();
+
+  logger.info('Открываю страницу создания темы');
+  await page.goto(createTopicUrl, { waitUntil: 'networkidle' });
+
+  logger.info('Заполняю форму');
+
+  try {
+    logger.info('Поле [0]: Автор(ы)');
+    await page.fill('input[name="forum-template-field[0]"]', formatAuthors(bookData.metadata.authors));
+
+    logger.info('Поле [1]: Название книги/серии');
+    await page.fill('input[name="forum-template-field[1]"]', bookData.metadata.title);
+
+    if (bookData.metadata.seriesBooks) {
+      logger.info('Поле [2]: Выкладываемые книги серии');
+      await page.fill('textarea[name="forum-template-field[2]"]', bookData.metadata.seriesBooks);
+    }
+
+    logger.info('Выбираю жанры');
+    if (bookData.metadata.genres) {
+      for (const name of bookData.metadata.genres) {
+        const id = GENRE_MAP[name.trim()];
+        if (id) {
+          await page.check(`input[name="forum-template-field[3][]\"][value="${id}"]`);
+        } else {
+          logger.warn(`Не найден ID для жанра: "${name}"`);
+        }
+      }
+    }
+
+    if (bookData.metadata.annotation) {
+      logger.info('Поле [6]: Аннотация');
+      await page.fill('textarea[name="forum-template-field[6]"]', bookData.metadata.annotation);
+    }
+
+    if (bookData.metadata.authorHomePage) {
+      logger.info('Поле [7]: Информация об авторе');
+      await page.fill('textarea[name="forum-template-field[7]"]', bookData.metadata.authorHomePage);
+    }
+
+    if (bookData.metadata.downloadCount !== undefined) {
+      logger.info('Поле [13]: Число предыдущих скачиваний');
+      await page.fill('input[name="forum-template-field[13]"]', String(bookData.metadata.downloadCount));
+    }
+
+    if (bookData.metadata.originalPostUrl) {
+      logger.info('Поле [14]: Ссылка на оригинальный пост');
+      await page.fill('input[name="forum-template-field[14]"]', bookData.metadata.originalPostUrl);
+    }
+
+    if (bookData.metadata.originalUploaderUrl) {
+      logger.info('Поле [15]: Автор релиза');
+      await page.fill('input[name="forum-template-field[15]"]', bookData.metadata.originalUploaderUrl);
+    }
+
+  } catch (e) {
+    logger.error('Ошибка при заполнении формы', e);
+  }
+
+  logger.info('Форма заполнена');
+
+  logger.info('Загружаю файлы');
+  const coverPaths = bookData.assets.coverPaths ||
+    (bookData.assets.coverPath ? [bookData.assets.coverPath] : []);
+
+  // ИСПРАВЛЕНО: защита от [undefined] — аналогично логике coverPaths
+  const bookArchivePaths = bookData.assets.bookArchivePaths ||
+    (bookData.assets.bookArchivePath ? [bookData.assets.bookArchivePath] : []);
+
+  const expectedFileCount = coverPaths.length + bookArchivePaths.length;
+
+  if (coverPaths.length > 0) {
+    const coverInput = page
+      .locator('div.dfrms:has-text("Обложка книги:")')
+      .locator('input[type="file"]');
+    await coverInput.setInputFiles(coverPaths);
+  }
+
+  if (bookArchivePaths.length > 0) {
+    const bookInput = page
+      .locator('div.dfrms:has-text("Файлы fb2/epub")')
+      .locator('input[type="file"]');
+    await bookInput.setInputFiles(bookArchivePaths);
+  }
+
+  if (expectedFileCount > 0) {
+    logger.info(`Ожидаю загрузки ${expectedFileCount} файлов...`);
+    await page.locator('.forum-attach-file').nth(expectedFileCount - 1).waitFor({ timeout: 120000 });
+    logger.info('Файлы загружены.');
+  }
+
+  // ИСПРАВЛЕНО: защита от TypeError когда bookArchivePath = undefined
+  const archivePath = bookData.assets.bookArchivePaths?.[0] ?? bookData.assets.bookArchivePath;
+  const screenshotPath = archivePath
+    ? path.join(path.dirname(archivePath), 'form_filled.png')
+    : 'form_filled.png';
+
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+  logger.info(`Скриншот: ${screenshotPath}`);
+
+  return { page, screenshotPath };
+}
+
+export async function submitTopicForm(page: Page): Promise<string> {
+  logger.info('Отправляю тему');
+  const urlBefore = page.url();
+  logger.info(`URL до отправки: ${urlBefore}`);
+
+  await page.click('input[name="dosubmit"]');
+  await page.waitForURL('**/index.php?showtopic=*', { timeout: 60000 });
+
+  const newTopicUrl = page.url();
+  logger.info(`Тема создана: ${newTopicUrl}`);
+  return newTopicUrl;
+}
